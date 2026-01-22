@@ -1,25 +1,13 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
 #include <glad/glad.h>
+
+#include <filesystem>
 
 #include "Graphics/Texture/TextureDescriptor.h"
 
-struct TextureOpenGL {
-  TextureOpenGL(unsigned t_width, unsigned t_height, unsigned t_channels, char* data)
-      : width(t_width), height(t_height), channels(t_channels) {
-    glGenTextures(1, &nativeTextureHandle);
-    glBindTexture(GL_TEXTURE_2D, nativeTextureHandle);
-    // set the texture wrapping parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // set texture filtering parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-  }
+struct Texture {
+  explicit Texture(std::filesystem::path t_path);
 
   TextureDescriptor getTextureDescriptor() const noexcept {
     TextureDescriptor out;
@@ -28,16 +16,16 @@ struct TextureOpenGL {
     return out;
   }
 
-  ~TextureOpenGL() noexcept {
-    glDeleteTextures(1, &nativeTextureHandle);
+  ~Texture() noexcept {
+    glDeleteTextures(1, &textureHandle);
   }
 
-  auto getNativeHandle() const noexcept -> unsigned {
-    return nativeTextureHandle;
+  auto handle() const noexcept -> unsigned {
+    return textureHandle;
   }
 
-  unsigned width = 0u;
-  unsigned height = 0u;
-  unsigned channels = 0u;
-  unsigned nativeTextureHandle = 0u;
+  signed width = 0u;
+  signed height = 0u;
+  signed channels = 0u;
+  unsigned textureHandle = 0u;
 };

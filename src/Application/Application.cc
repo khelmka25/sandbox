@@ -4,142 +4,169 @@
 
 #include <glm/glm.hpp>
 #include <iostream>
+#include <queue>
 #include <stdexcept>
 #include <utility>
 
-#include "Graphics/Context.h"
+#include "Application/Context.h"
+#include "Application/Event.h"
+
+#include <argh.h>
+
+#include "Preprocessor/Irradiance/Irradiance.h"
+#include "Preprocessor/Prefilter/Prefilter.h"
 
 using namespace std::literals::string_view_literals;
 
-Application::Application()
-    : context("OpenGL Window", {640u, 360u}),
-      shader("assets/shaders/vertex.glsl", "assets/shaders/fragment.glsl") {
-  // generate and set up vertex array
-  glGenVertexArrays(1, &vertexArrayHandle);
-  // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBindVertexArray.xhtml
-  glBindVertexArray(vertexArrayHandle);
+Application::Application(char** argv, int argc) noexcept(true)
+    : context("OpenGL Window", {256, 256}),
+      camera("camera"sv, {-1, 0, 0}, {0,0,0}),
+      skybox(),
+      objectShader("assets/shaders/generic/vertex.glsl", "assets/shaders/generic/fragment.glsl"),
+      skyboxShader("assets/shaders/skybox/vertex.glsl", "assets/shaders/skybox/fragment.glsl") {
 
-  // generate vertex buffer
-  glGenBuffers(1, &vertexBufferHandle);
-  glBindBuffer(GL_ARRAY_BUFFER, vertexBufferHandle);
+  argh::parser cmdl(argv, argc);
+  if (cmdl.operator[]({"-g"})) {
+    // generate irradiance maps into the output folder
+    glDisable(GL_CULL_FACE); 
+    glDisable(GL_DEPTH_TEST);
+    
+    irradiance::run();
+    prefilter::run();
+  }
 
-  // 1. Position attributes of triangulation data: Takes up 2 floats: x, y
-  // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glVertexAttribPointer.xhtml
-  glVertexAttribPointer(0u, 2u, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void*)0);
-  // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glEnableVertexAttribArray.xhtml
-  glEnableVertexArrayAttrib(vertexArrayHandle, 0u);
-
-  // 2. Color attributes of triangulation data: Takes up 4 floats: r, g, b, a
-  glVertexAttribPointer(1u, 4u, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void*)(2 * sizeof(float)));
-  glEnableVertexArrayAttrib(vertexArrayHandle, 1u);
-
-  // 3. Texture uv of triangulation data: Takes up 2 floats: u, v
-  glVertexAttribPointer(2u, 2u, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void*)(6 * sizeof(float)));
-  glEnableVertexArrayAttrib(vertexArrayHandle, 2u);
-
-  // generate index element buffer
-  glGenBuffers(1u, &indexBufferHandle);
-
-  glBindVertexArray(0u);
-  glBindBuffer(GL_ARRAY_BUFFER, 0u);
+  glEnable(GL_DEPTH_TEST);
+  
+  // px, nx, py, ny, pz, nz
+  cubes[0].translate({+3, 0, 0});
+  cubes[1].translate({-3, 0, 0});
+  cubes[2].translate({0, +3, 0});
+  cubes[3].translate({0, -3, 0});
+  cubes[4].translate({0, 0, +3});
+  cubes[5].translate({0, 0, -3});
+  // red, orange, yellow, green, blue, purple
+  colors[0] = glm::vec3(1.f, 0, 0);
+  colors[1] = glm::vec3(1.f, 0.5f, 0);
+  colors[2] = glm::vec3(1.f, 1.f, 0);
+  colors[3] = glm::vec3(0, 1.f, 0);
+  colors[4] = glm::vec3(0, 0.5f, 1.f);
+  colors[5] = glm::vec3(0.5f, 0, 1);
 }
 
-Application::~Application() noexcept {
-  glDeleteBuffers(1, &vertexBufferHandle);
-  glDeleteVertexArrays(1, &vertexArrayHandle);
-  glDeleteBuffers(1, &indexBufferHandle);
-}
-
-void Application::build(Context* ctx) {
-  glBindVertexArray(vertexArrayHandle);
-
-  // // upload the vertex data
-  // glBindBuffer(GL_ARRAY_BUFFER, vertexBufferHandle);
-  // // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBufferData.xhtml
-  // glBufferData(GL_ARRAY_BUFFER, ctx->vertices.size() * sizeof(Vertex),
-  //              &ctx->vertices.at(0), GL_DYNAMIC_DRAW);
-
-  // // upload the index element data
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBufferHandle);
-  // glBufferData(GL_ELEMENT_ARRAY_BUFFER, ctx->indices.size() * sizeof(unsigned),
-  //              &ctx->indices.at(0), GL_DYNAMIC_DRAW);
-
-  glBindVertexArray(0u);
-}
-
-void Application::draw(Context* ctx) noexcept(false) {
+void Application::draw() noexcept(false) {
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glDrawArrays.xhtml
-  // void glDrawArrays( 	GLenum mode,
-  // 	GLint first,
-  // 	GLsizei count);
+  // draw models inside the scence
+  objectShader.enable();
+  auto model = glm::mat4(1.0f);
+  auto view = camera.view();
+  auto projection = glm::perspective(glm::radians(70.f), 16.f / 9.f, 0.1f, 100.0f);
+  objectShader.setMat4("model", model);
+  objectShader.setMat4("view", view);
+  objectShader.setInt("skybox", 0);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.textureHandle());
+  objectShader.setMat4("projection", projection);
+  objectShader.setVec3("albedo", glm::vec3(1));
+  objectShader.setFloat("metallic", 0);
+  objectShader.setVec3("cameraPos", camera.position);
 
-  // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glDrawElements.xhtml
-  // void glDrawElements( 	GLenum mode,
-  // 	GLsizei count,
-  // 	GLenum type,
-  // 	const void * indices);
+  // draw cube primitive
+  cubePrimitive.draw(&objectShader);
 
-  shader.enable();
-  recomputeViewport({640.f, 360.f});
+  // draw in each of 6 directions:
+  for (int i = 0; i < 6; i++) {
+    objectShader.setFloat("metallic", 0);
+    objectShader.setVec3("albedo", colors[i]);
+    cubes[i].draw(&objectShader);
+  }
 
-  glBindVertexArray(vertexArrayHandle);
-
-  // // context: iterate through all of the draw commands
-  // for (std::size_t i{}; i < ctx->commands.size(); i++) {
-  //   const auto& cmd = ctx->commands.at(i);
-  //   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glDrawElements.xhtml
-  //   const unsigned count = (cmd.indices.end - cmd.indices.begin);
-  //   GLenum const type = GL_UNSIGNED_INT;
-  //   const unsigned offset = cmd.indices.begin;
-  //   void* const indices = (void*)(offset * sizeof(unsigned));
-  //   // different actions based on command
-  //   switch (cmd.action) {
-  //     case Action::kNone: {
-  //       break;
-  //     }
-  //     case Action::kSwapPrimitivePoints: {
-  //       glDrawElements(GL_POINTS, count, GL_UNSIGNED_INT, indices);
-  //       break;
-  //     }
-  //     case Action::kSwapPrimitiveLines: {
-  //       glDrawElements(GL_LINES, count, GL_UNSIGNED_INT, indices);
-  //       break;
-  //     }
-  //     case Action::kSwapPrimitiveTriangles: {
-  //       glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, indices);
-  //       break;
-  //     }
-  //     case Action::kSwapTexture: {
-  //       shader.setInt("sprite_sheet", cmd.texture);
-  //       break;
-  //     }
-  //   }
-  // }
-
-  shader.disable();
-  glBindVertexArray(0u);
+  // change depth function so depth test passes when values are equal to depth buffer's content
+  glDepthFunc(GL_LEQUAL);
+  skyboxShader.enable();
+  // remove translation from the view matrix
+  view = glm::mat4(glm::mat3(camera.view()));
+  skyboxShader.setMat4("view", view);
+  skyboxShader.setMat4("projection", projection);
+  skybox.draw(&skyboxShader);
+  // set depth function back to default
+  glDepthFunc(GL_LESS);
 
   glfwSwapBuffers(context.window);
   glfwPollEvents();
 }
 
-void Application::recomputeViewport(glm::vec2 size) {
-  // recompute the translation and the scaling matrix
-  glm::mat4 I(1);
-  // scale from [-1, 1] to [0, size]
-  I = glm::scale(I, glm::vec3{2.f / size.x, 2.f / size.y, 0.f});
-  // translate from [0, size] to [-size/2, size/2]
-  I = glm::translate(I, glm::vec3{-size.x / 2.f, -size.y / 2.f, 0.f});
-
-  shader.setMat4("projection"sv, I);
-}
-
 bool Application::isOpen() noexcept {
   return !glfwWindowShouldClose(context.window);
+}
+
+void Application::handleEvents() {
+  // poll events
+  glfwPollEvents();
+  // handle events
+  while (!context.eventQueue.empty()) {
+    const auto event = context.eventQueue.front();
+    switch (event.type) {
+      case EventType::kKeyboardEvent: {
+        const auto data = std::get<KeyboardEvent>(event.contents());
+        handleKeyboardEvent(data);
+        break;
+      }
+      case EventType::kMouseButtonEvent: {
+        const auto data = std::get<MouseButtonEvent>(event.contents());
+        handleMouseButtonEvent(data);
+        break;
+      }
+      case EventType::kMousePositionEvent: {
+        const auto data = std::get<MousePositionEvent>(event.contents());
+        handlePositionEvent(data);
+        break;
+      }
+      case EventType::kScrollEvent: {
+        const auto data = std::get<ScrollEvent>(event.contents());
+        handleScrollEvent(data);
+        break;
+      }
+    }
+    context.eventQueue.pop();
+  }
+}
+
+void Application::handleKeyboardEvent(const KeyboardEvent& e) {
+  switch (e.key) {
+    case GLFW_KEY_O: {
+      // open a file and import
+      // ...
+      break;
+    }
+    case GLFW_KEY_ESCAPE: {
+      // close the program
+      glfwSetWindowShouldClose(context.window, true);
+      break;
+    }
+    default: {
+      // forward to the camera
+      camera.handleKeyboardEvent(e);
+      break;
+    }
+  }
+}
+
+void Application::handleMouseButtonEvent(const MouseButtonEvent& e) {
+  // forward to the camera
+  camera.handleMouseButtonEvent(e);
+}
+
+void Application::handlePositionEvent(const MousePositionEvent& e) {
+  // forward to the camera
+  camera.handlePositionEvent(e);
+}
+
+void Application::handleScrollEvent(const ScrollEvent& e) {
+  // forward to the camera
+  camera.handleScrollEvent(e);
+}
+
+Application::~Application() noexcept(true) {
 }

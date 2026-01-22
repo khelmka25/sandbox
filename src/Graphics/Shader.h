@@ -1,14 +1,10 @@
 #pragma once
 
-#include <string_view>
 #include <filesystem>
-#include <unordered_map>
-
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <string_view>
+#include <unordered_map>
 
 class Shader {
  public:
@@ -16,26 +12,31 @@ class Shader {
   Shader(std::filesystem::path vertexPath, std::filesystem::path fragmentPath);
   ~Shader();
 
-  unsigned int getProgramHandle(void);
+  unsigned int handle(void);
 
   static std::string loadShaderCode(std::string path) noexcept(false);
 
-  void registerUniform(const std::string_view name);
-  void unregisterUniform(const std::string_view name);
-
   void enable();
   void disable();
-  
-  void setBool(const std::string_view name, bool value);
-  void setInt(const std::string_view name, int value);
-  void setFloat(const std::string_view name, float value);
-  void setMat4(const std::string_view name, glm::mat4 value);
-  
+
+  void setBool(std::string_view name, bool value);
+  void setInt(std::string_view name, int value);
+  void setFloat(std::string_view name, float value);
+  void setVec2(std::string_view name, const glm::vec2& value);
+  void setVec2(std::string_view name, float x, float y);
+  void setVec3(std::string_view name, const glm::vec3& value);
+  void setVec3(std::string_view name, float x, float y, float z);
+  void setVec4(std::string_view name, const glm::vec4& value);
+  void setVec4(std::string_view name, float x, float y, float z, float w);
+  void setMat2(std::string_view name, const glm::mat2& mat);
+  void setMat3(std::string_view name, const glm::mat3& mat);
+  void setMat4(std::string_view name, const glm::mat4& mat);
+
  protected:
   int findUniformLocation(std::string_view name);
 
  protected:
-  unsigned int shaderProgramHandle, vertexShaderHandle, fragmentShaderHandle;
+  unsigned int programHandle, vertexShaderHandle, fragmentShaderHandle;
   // map uniform names to their locations
   std::unordered_map<std::string_view, int> uniformLocations;
 };

@@ -6,6 +6,8 @@
 #include <glm/glm.hpp>
 
 #include <string_view>
+#include <queue>
+#include <Application/Event.h>
 
 struct Context {
  public:
@@ -13,4 +15,7 @@ struct Context {
   ~Context() noexcept;
 
   GLFWwindow* window;
+
+ public:
+  static std::queue<Event> eventQueue;
 };

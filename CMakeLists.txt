@@ -15,6 +15,18 @@ target_include_directories(glad PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/deps/glad/include
 )
 
+# stb
+add_library(stb_image INTERFACE)
+target_include_directories(stb_image INTERFACE
+  ${CMAKE_SOURCE_DIR}/deps/stb
+)
+
+# stb
+add_library(argh INTERFACE)
+target_include_directories(argh INTERFACE
+  ${CMAKE_SOURCE_DIR}/deps/argh
+)
+
 enable_testing()
 add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
 

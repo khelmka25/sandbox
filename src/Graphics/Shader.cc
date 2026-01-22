@@ -1,25 +1,22 @@
 
+#include "Graphics/Shader.h"
+
+#include <glad/glad.h>
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <utility>
 
-#include "Graphics/Shader.h"
-
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
 using namespace std::literals::string_view_literals;
 
-Shader::Shader(std::filesystem::path vertexPath,
-                           std::filesystem::path fragmentPath) {
+Shader::Shader(std::filesystem::path vertexPath, std::filesystem::path fragmentPath) {
   /*Vertex Shader*/
 
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glCreateShader.xhtml
   vertexShaderHandle = glCreateShader(GL_VERTEX_SHADER);
 
-  std::string vertexShaderSource =
-      Shader::loadShaderCode(vertexPath.string());
+  std::string vertexShaderSource = Shader::loadShaderCode(vertexPath.string());
   const char* vertexShaderSourcePtr = vertexShaderSource.c_str();
 
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glShaderSource.xhtml
@@ -42,8 +39,7 @@ Shader::Shader(std::filesystem::path vertexPath,
 
   fragmentShaderHandle = glCreateShader(GL_FRAGMENT_SHADER);
 
-  std::string fragmentShaderSource =
-      Shader::loadShaderCode(fragmentPath.string());
+  std::string fragmentShaderSource = Shader::loadShaderCode(fragmentPath.string());
   const char* fragmentShaderSourcePtr = fragmentShaderSource.c_str();
 
   glShaderSource(fragmentShaderHandle, 1, &fragmentShaderSourcePtr, nullptr);
@@ -59,35 +55,35 @@ Shader::Shader(std::filesystem::path vertexPath,
 
   // Create the shader program with Id
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glCreateProgram.xhtml
-  shaderProgramHandle = glCreateProgram();
+  programHandle = glCreateProgram();
 
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glAttachShader.xhtml
-  glAttachShader(shaderProgramHandle, vertexShaderHandle);
-  glAttachShader(shaderProgramHandle, fragmentShaderHandle);
+  glAttachShader(programHandle, vertexShaderHandle);
+  glAttachShader(programHandle, fragmentShaderHandle);
 
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glDeleteShader.xhtml
   glDeleteShader(vertexShaderHandle);
   glDeleteShader(fragmentShaderHandle);
 
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glLinkProgram.xhtml
-  glLinkProgram(shaderProgramHandle);
+  glLinkProgram(programHandle);
 
   GLint shaderStatus;
-  glGetProgramiv(shaderProgramHandle, GL_LINK_STATUS, &shaderStatus);
+  glGetProgramiv(programHandle, GL_LINK_STATUS, &shaderStatus);
   if (shaderStatus != GL_TRUE) {
     GLchar infoLog[1024];
-    glGetProgramInfoLog(shaderProgramHandle, 1024, nullptr, infoLog);
+    glGetProgramInfoLog(programHandle, 1024, nullptr, infoLog);
     std::cout << infoLog << std::endl;
   }
 
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glUseProgram.xhtml
-  glUseProgram(shaderProgramHandle);
+  glUseProgram(programHandle);
 }
 
 Shader::~Shader() {
   glUseProgram(0u);
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glDeleteProgram.xhtml
-  glDeleteProgram(shaderProgramHandle);
+  glDeleteProgram(programHandle);
 }
 
 std::string Shader::loadShaderCode(std::string path) noexcept(false) {
@@ -106,15 +102,15 @@ std::string Shader::loadShaderCode(std::string path) noexcept(false) {
 }
 
 void Shader::enable() {
-  glUseProgram(shaderProgramHandle);
+  glUseProgram(programHandle);
 }
 
 void Shader::disable() {
   glUseProgram(0u);
 }
 
-GLuint Shader::getProgramHandle(void) {
-  return shaderProgramHandle;
+GLuint Shader::handle(void) {
+  return programHandle;
 }
 
 int Shader::findUniformLocation(std::string_view name) {
@@ -123,56 +119,64 @@ int Shader::findUniformLocation(std::string_view name) {
     const auto location = uniformLocations.at(name);
     return location;
   }
-  auto const location =
-      glGetUniformLocation(this->shaderProgramHandle, name.data());
+  auto const location = glGetUniformLocation(this->programHandle, name.data());
   uniformLocations.insert({name, location});
   return location;
 }
 
-void Shader::setBool(const std::string_view name, bool value) {
+void Shader::setBool(std::string_view name, bool value) {
   const auto location = findUniformLocation(name);
-  glUniform1i(location, static_cast<int>(value));
+  glUniform1i(location, (int)value);
 }
 
-void Shader::setInt(const std::string_view name, int value) {
+void Shader::setInt(std::string_view name, int value) {
   const auto location = findUniformLocation(name);
   glUniform1i(location, value);
 }
 
-void Shader::setFloat(const std::string_view name, float value) {
+void Shader::setFloat(std::string_view name, float value) {
   const auto location = findUniformLocation(name);
   glUniform1f(location, value);
 }
 
-void Shader::setMat4(const std::string_view name, glm::mat4 value) {
-  // void glUniformMatrix4fv( 	GLint location,
-  // GLsizei count,
-  // GLboolean transpose,
-  // const GLfloat *value);
+void Shader::setVec2(std::string_view name, const glm::vec2& value) {
   const auto location = findUniformLocation(name);
-  glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
+  glUniform2fv(location, 1, &value[0]);
+}
+void Shader::setVec2(std::string_view name, float x, float y) {
+  const auto location = findUniformLocation(name);
+  glUniform2f(location, x, y);
 }
 
-void Shader::registerUniform(
-    const std::string_view name) noexcept(false) {
-  // ensure the uniform is created only once
-  if (uniformLocations.find(name) != uniformLocations.end()) {
-    throw std::runtime_error("This uniform already exists");
-  }
-  // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glGetUniformLocation.xhtml
-  auto location = glGetUniformLocation(getProgramHandle(), name.data());
-  if (location != -1) {
-    uniformLocations.insert({name, location});
-  } else {
-    std::cout << "name: " << name << " does not exist" << std::endl;
-    throw std::runtime_error("This uniform does not exist");
-  }
+void Shader::setVec3(std::string_view name, const glm::vec3& value) {
+  const auto location = findUniformLocation(name);
+  glUniform3fv(location, 1, &value[0]);
+}
+void Shader::setVec3(std::string_view name, float x, float y, float z) {
+  const auto location = findUniformLocation(name);
+  glUniform3f(location, x, y, z);
 }
 
-void Shader::unregisterUniform(const std::string_view name) {
-  if (uniformLocations.find(name) != uniformLocations.end()) {
-    uniformLocations.erase(name);
-  } else {
-    throw std::runtime_error("This uniform is not currently registered");
-  }
+void Shader::setVec4(std::string_view name, const glm::vec4& value) {
+  const auto location = findUniformLocation(name);
+  glUniform4fv(location, 1, &value[0]);
+}
+void Shader::setVec4(std::string_view name, float x, float y, float z, float w) {
+  const auto location = findUniformLocation(name);
+  glUniform4f(location, x, y, z, w);
+}
+
+void Shader::setMat2(std::string_view name, const glm::mat2& mat) {
+  const auto location = findUniformLocation(name);
+  glUniformMatrix2fv(location, 1, GL_FALSE, &mat[0][0]);
+}
+
+void Shader::setMat3(std::string_view name, const glm::mat3& mat) {
+  const auto location = findUniformLocation(name);
+  glUniformMatrix3fv(location, 1, GL_FALSE, &mat[0][0]);
+}
+
+void Shader::setMat4(std::string_view name, const glm::mat4& mat) {
+  const auto location = findUniformLocation(name);
+  glUniformMatrix4fv(location, 1, GL_FALSE, &mat[0][0]);
 }

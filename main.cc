@@ -1,10 +1,20 @@
 
-#include "Application/Application.h"
+#include <glad/glad.h>
 
-int main() {
-  Application app;
+#include "Application/Application.h"
+#include "Graphics/Texture/CubeMap.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
+int main(int argc, char** argv) {
+  Application app(argv, argc);
   while (app.isOpen()) {
-    app.draw(nullptr);
+    app.handleEvents();
+    app.draw();
   }
 
   return 0;

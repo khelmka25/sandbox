@@ -4,25 +4,38 @@
 
 #include <string_view>
 
-#include "Graphics/Context.h"
+#include "Application/Context.h"
 #include "Graphics/Shader.h"
+#include "Camera/Camera.h"
+#include "Object/Skybox.h"
+#include "Object/Object.h"
+#include "Object/CubePrimitive.h"
 
 class Application {
  public:
-  Application();
-  ~Application() noexcept;
+  Application(char** argv, int argc) noexcept(true);
+  ~Application() noexcept(true);
 
  public:
-  virtual void build(Context* ctx);
-  virtual void draw(Context* ctx) noexcept(false);
-  virtual void recomputeViewport(glm::vec2 size);
+  virtual void handleEvents();
+  void handleKeyboardEvent(const KeyboardEvent& e);
+  void handleMouseButtonEvent(const MouseButtonEvent& e);
+  void handlePositionEvent(const MousePositionEvent& e);
+  void handleScrollEvent(const ScrollEvent& e);
+  virtual void draw() noexcept(false);
   virtual bool isOpen() noexcept;
 
   Context context;
-  Shader shader;
+  Camera camera;
 
-  unsigned vertexBufferHandle;
-  unsigned vertexArrayHandle;
+  CubePrimitive cubePrimitive;
 
-  unsigned indexBufferHandle;
+  std::array<CubePrimitive, 6ull> cubes;
+  std::array<glm::vec3, 6ull> colors;
+
+  std::vector<std::shared_ptr<Object>> objects;
+  Skybox skybox;
+  
+  Shader objectShader;
+  Shader skyboxShader;
 };
