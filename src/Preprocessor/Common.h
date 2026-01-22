@@ -2,7 +2,7 @@
 
 namespace common {
 
-inline const unsigned resolution = 128u;
+inline const unsigned resolution = 256u;
 
 inline float cubeVertices[108] = {
     -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f,

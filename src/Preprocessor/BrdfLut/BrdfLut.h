@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "Graphics/Shader.h"
-#include "Graphics/Texture/CubeMap.h"
 #include "Preprocessor/Common.h"
 
 namespace brdf_lut {
@@ -64,7 +63,7 @@ inline void exportBrdfLut(unsigned texture, unsigned size, std::filesystem::path
   if (!stbi_write_hdr(filepath.c_str(), size, size, 2, pixels.data())) {
     std::cerr << "Failed to write " << filepath << "\n";
   } else {
-    std::cout << "Exported: " << filepath << std::endl;
+    std::cout << "Exported: " << filepath << " - " << size << 'x' << size << 'x' << 2 << std::endl;
   }
 }
 

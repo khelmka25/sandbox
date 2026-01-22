@@ -6,7 +6,6 @@
 #include <string_view>
 
 #include "Graphics/Shader.h"
-#include "Graphics/Texture/CubeMap.h"
 
 extern float skyboxVertices[108];
 
@@ -17,12 +16,9 @@ class Skybox {
 
   void draw(class Shader* shader);
 
-  auto textureHandle() {
-    return cubemap.textureHandle();
-  }
-
+  unsigned cubemap;
+  
  protected:
-  CubeMap cubemap;
   unsigned vertexArrayHandle;
   unsigned vertexBufferHandle;
 };

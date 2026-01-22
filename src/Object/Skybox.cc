@@ -1,5 +1,7 @@
 #include "Object/Skybox.h"
 
+#include "Graphics/Cubemap/Cubemap.h"
+
 float skyboxVertices[108] = {
     -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f,
     1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
@@ -20,7 +22,8 @@ float skyboxVertices[108] = {
     1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,
 };
 
-Skybox::Skybox() noexcept(true) : cubemap("assets/textures/output/", true) {
+Skybox::Skybox() noexcept(true) {
+  cubemap = gfx::createHdrCubemap("assets/textures/irradiance/");
   glGenVertexArrays(1, &vertexArrayHandle);
   glGenBuffers(1, &vertexBufferHandle);
   glBindVertexArray(vertexArrayHandle);
@@ -39,7 +42,7 @@ void Skybox::draw(Shader* shader) {
   shader->setInt("cubemap", 0);
   glBindVertexArray(vertexArrayHandle);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap.textureHandle());
+  glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
   glDrawArrays(GL_TRIANGLES, 0, 36);
   glBindVertexArray(0);
 }

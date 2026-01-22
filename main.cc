@@ -2,7 +2,6 @@
 #include <glad/glad.h>
 
 #include "Application/Application.h"
-#include "Graphics/Texture/CubeMap.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>

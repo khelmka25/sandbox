@@ -11,12 +11,12 @@
 #include <vector>
 
 #include "Graphics/Shader.h"
-#include "Graphics/Texture/CubeMap.h"
+#include "Graphics/Cubemap/Cubemap.h"
 #include "Preprocessor/Common.h"
 
 namespace prefilter {
 namespace detail {
-inline const int maxMipLevels = 5;
+inline const int maxMipLevels = 6;
 
 // Prefilter Map
 inline unsigned prefilterMap;
@@ -31,14 +31,13 @@ inline void createPrefilterMap() {
     }
   }
 
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, detail::maxMipLevels - 1);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, 4);
 }
 
 inline void destroyPrefilterMap() {
@@ -59,13 +58,13 @@ inline void exportPrefilterCubeMap(unsigned cubemap, int size, int mipLevels, st
     for (int i = 0; i < 6; ++i) {
       glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, mip, GL_RGB, GL_FLOAT, pixels.data());
 
-      auto filename = std::format("{}-{}.hdr", faces[i], mip);
+      auto filename = std::format("mip{}-{}.hdr", mip, faces[i]);
       auto filepath = path / filename;
 
       if (!stbi_write_hdr(filepath.c_str(), mipWidth, mipHeight, 3, pixels.data())) {
         std::cerr << "Failed to write " << filepath << "\n";
       } else {
-        std::cout << "Saved: " << filepath << std::endl;
+        std::cout << "Exported: " << filepath << " - " << size << 'x' << size << 'x' << 3 << std::endl;
       }
     }
   }
@@ -75,7 +74,7 @@ inline void exportPrefilterCubeMap(unsigned cubemap, int size, int mipLevels, st
 inline void run() {
   std::cout << "[prefilter] Running" << std::endl;
   Shader prefilterShader("assets/shaders/prefilter/vertex.glsl", "assets/shaders/prefilter/fragment.glsl");
-  CubeMap envCubemap("assets/textures/input/", true);
+  unsigned envCubemap = gfx::createPngCubemap("assets/textures/input/");
 
   std::cout << "[prefilter] Creating Objects" << std::endl;
   common::createCube();
@@ -89,7 +88,7 @@ inline void run() {
   glUseProgram(prefilterShader.handle());
   glUniform1i(glGetUniformLocation(prefilterShader.handle(), "environmentMap"), 0);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap.textureHandle());
+  glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
   std::cout << "[prefilter] Begin Drawing" << std::endl;
   // Main render loop

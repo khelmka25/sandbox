@@ -20,7 +20,7 @@
 using namespace std::literals::string_view_literals;
 
 Application::Application(char** argv, int argc) noexcept(true)
-    : context("OpenGL Window", {256, 256}),
+    : context("OpenGL Window", {512, 512}),
       camera("camera"sv, {-1, 0, 0}, {0,0,0}),
       skybox(),
       objectShader("assets/shaders/generic/vertex.glsl", "assets/shaders/generic/fragment.glsl"),
@@ -28,7 +28,6 @@ Application::Application(char** argv, int argc) noexcept(true)
 
   argh::parser cmdl(argv, argc);
   if (cmdl.operator[]({"-g"})) {
-    // generate irradiance maps into the output folder
     glDisable(GL_CULL_FACE); 
     glDisable(GL_DEPTH_TEST);
     
@@ -68,7 +67,7 @@ void Application::draw() noexcept(false) {
   objectShader.setMat4("view", view);
   objectShader.setInt("skybox", 0);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.textureHandle());
+  glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.cubemap);
   objectShader.setMat4("projection", projection);
   objectShader.setVec3("albedo", glm::vec3(1));
   objectShader.setFloat("metallic", 0);

@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "Graphics/Shader.h"
-#include "Graphics/Texture/CubeMap.h"
 #include "Preprocessor/Common.h"
+#include "Graphics/Cubemap/Cubemap.h"
 
 namespace irradiance {
 namespace detail {
@@ -28,7 +28,7 @@ inline void createIrradianceMap() {
                  GL_FLOAT, nullptr);
   }
 
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -55,7 +55,7 @@ inline void exportIrradianceCubeMap(unsigned cubemap, int size, std::filesystem:
     if (!stbi_write_hdr(filepath.c_str(), size, size, 3, pixels.data())) {
       std::cerr << "Failed to write " << filepath << "\n";
     } else {
-      std::cout << "Exported: " << filepath << std::endl;
+      std::cout << "Exported: " << filepath << " - " << size << 'x' << size << 'x' << 3 << std::endl;
     }
   }
 }
@@ -66,7 +66,7 @@ inline void run() {
   std::cout << "[irradiance] Running" << std::endl;
   Shader irradianceShader("assets/shaders/irradiance/vertex.glsl", "assets/shaders/irradiance/fragment.glsl");
   const glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-  CubeMap envCubemap("assets/textures/input/", true);
+  unsigned envCubemap = gfx::createPngCubemap("assets/textures/input/");
 
   std::cout << "[irradiance] Creating Objects" << std::endl;
   common::createCube();
@@ -79,7 +79,7 @@ inline void run() {
   glUseProgram(irradianceShader.handle());
   glUniform1i(glGetUniformLocation(irradianceShader.handle(), "environmentMap"), 0);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap.textureHandle());
+  glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
   std::cout << "[irradiance] Begin Drawing" << std::endl;
   // Main render loop
