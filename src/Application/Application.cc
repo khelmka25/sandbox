@@ -15,6 +15,7 @@
 
 #include "Preprocessor/Irradiance/Irradiance.h"
 #include "Preprocessor/Prefilter/Prefilter.h"
+#include "Preprocessor/BrdfLut/BrdfLut.h"
 
 using namespace std::literals::string_view_literals;
 
@@ -33,6 +34,7 @@ Application::Application(char** argv, int argc) noexcept(true)
     
     irradiance::run();
     prefilter::run();
+    brdf_lut::run();
   }
 
   glEnable(GL_DEPTH_TEST);
