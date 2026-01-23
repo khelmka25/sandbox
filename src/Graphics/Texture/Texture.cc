@@ -15,7 +15,7 @@ unsigned createTexture(std::filesystem::path path, bool hdr) {
   void* data(nullptr);
   
   if (hdr) {
-    data = stbi_loadf(path.c_str(), &width, &height, &channels, 3);
+    data = stbi_loadf(path.c_str(), &width, &height, &channels, 0);
   } else {
     data = stbi_load(path.c_str(), &width, &height, &channels, 4);
   }

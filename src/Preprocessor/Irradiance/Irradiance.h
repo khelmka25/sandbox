@@ -62,11 +62,11 @@ inline void exportIrradianceCubeMap(unsigned cubemap, int size, std::filesystem:
 
 }  // namespace detail
 
-inline void run() {
+inline unsigned run() {
   std::cout << "[irradiance] Running" << std::endl;
   Shader irradianceShader("assets/shaders/irradiance/vertex.glsl", "assets/shaders/irradiance/fragment.glsl");
   const glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-  unsigned envCubemap = gfx::createPngCubemap("assets/textures/input/");
+  unsigned envCubemap = gfx::createHdrCubemap("assets/textures/input/");
 
   std::cout << "[irradiance] Creating Objects" << std::endl;
   common::createCube();
@@ -102,10 +102,12 @@ inline void run() {
 
   detail::exportIrradianceCubeMap(detail::irradianceMap, common::resolution, "assets/textures/irradiance/");
 
-  detail::destroyIrradianceMap();
+  // detail::destroyIrradianceMap();
   common::destroyFrameBuffers();
   common::destroyCube();
 
   std::cout << "[irradiance] Done" << std::endl;
+
+  return detail::irradianceMap;
 }
 }  // namespace irradiance

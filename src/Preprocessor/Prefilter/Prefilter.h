@@ -47,7 +47,8 @@ inline void destroyPrefilterMap() {
 inline void exportPrefilterCubeMap(unsigned cubemap, int size, int mipLevels, std::filesystem::path path) {
   glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
 
-  std::array<std::string_view, 6ull> faces = {"px", "nx", "py", "ny", "pz", "nz"};
+  using namespace std::string_view_literals;
+  std::array<std::string_view, 6ull> faces = {"px"sv, "nx"sv, "py"sv, "ny"sv, "pz"sv, "nz"sv};
 
   for (int mip = 0; mip < mipLevels; mip++) {
     unsigned int mipWidth = size >> mip;
@@ -71,10 +72,10 @@ inline void exportPrefilterCubeMap(unsigned cubemap, int size, int mipLevels, st
 }
 }  // namespace detail
 
-inline void run() {
+inline unsigned run() {
   std::cout << "[prefilter] Running" << std::endl;
   Shader prefilterShader("assets/shaders/prefilter/vertex.glsl", "assets/shaders/prefilter/fragment.glsl");
-  unsigned envCubemap = gfx::createPngCubemap("assets/textures/input/");
+  unsigned envCubemap = gfx::createHdrCubemap("assets/textures/input/");
 
   std::cout << "[prefilter] Creating Objects" << std::endl;
   common::createCube();
@@ -83,8 +84,7 @@ inline void run() {
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, common::captureRBO);
 
   detail::createPrefilterMap();
-// color-stream
-// serial-device
+  
   std::cout << "[prefilter] Setup Shading" << std::endl;
   glUseProgram(prefilterShader.handle());
   glUniform1i(glGetUniformLocation(prefilterShader.handle(), "environmentMap"), 0);
@@ -123,10 +123,12 @@ inline void run() {
   detail::exportPrefilterCubeMap(detail::prefilterMap, common::resolution, detail::maxMipLevels,
                                  "assets/textures/prefilter");
 
-  detail::destroyPrefilterMap();
+  // detail::destroyPrefilterMap();
   common::destroyFrameBuffers();
   common::destroyCube();
 
   std::cout << "[prefilter] Done" << std::endl;
+
+  return detail::prefilterMap;
 }
 }  // namespace prefilter

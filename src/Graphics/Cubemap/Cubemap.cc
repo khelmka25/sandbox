@@ -45,6 +45,7 @@ unsigned createCubemap(std::filesystem::path path, bool hdr) {
     }
 
     const unsigned faceDir = GL_TEXTURE_CUBE_MAP_POSITIVE_X + i;
+    
     if (hdr) {
       std::cout << "Imported: " << filepath << " - " << width << 'x' << height << 'x' << channels << std::endl;
       glTexImage2D(faceDir, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
@@ -92,7 +93,7 @@ unsigned createCubemapMipped(std::filesystem::path path, bool hdr, int mipLevels
       void* data(nullptr);
 
       if (hdr) {
-        data = stbi_loadf(filepath.c_str(), &width, &height, &channels, 3);
+        data = stbi_loadf(filepath.c_str(), &width, &height, &channels, 0);
       } else {
         data = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
       }

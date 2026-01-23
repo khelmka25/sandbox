@@ -69,7 +69,7 @@ inline void exportBrdfLut(unsigned texture, unsigned size, std::filesystem::path
 
 }  // namespace detail
 
-inline void run() {
+inline unsigned run() {
   std::cout << "[brdf-lut] Running" << std::endl;
   Shader brdfShader("assets/shaders/brdf-lut/vertex.glsl", "assets/shaders/brdf-lut/fragment.glsl");
 
@@ -92,10 +92,12 @@ inline void run() {
   detail::exportBrdfLut(detail::brdfLutTexture, detail::resolution, "assets/textures/brdf-lut/");
 
   detail::destroyFrameBuffers();
-  detail::destroyBrdfLut();
+  // detail::destroyBrdfLut();
   common::destroyQuad();
 
   std::cout << "[brdf-lut] Done" << std::endl;
+
+  return detail::brdfLutTexture;
 }
 
 }  // namespace brdf_lut
