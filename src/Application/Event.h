@@ -1,6 +1,10 @@
 #pragma once
 
 #include <variant>
+#include <iostream>
+#include <queue>
+#include <stdexcept>
+#include <variant>
 
 enum class EventType : unsigned {
   kKeyboardEvent,
@@ -40,3 +44,5 @@ struct Event {
   EventType type;
   std::variant<KeyboardEvent, MouseButtonEvent, MousePositionEvent, ScrollEvent> content;
 };
+
+extern std::queue<Event> eventQueue;

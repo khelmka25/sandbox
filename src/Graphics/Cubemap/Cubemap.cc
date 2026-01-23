@@ -92,7 +92,6 @@ unsigned createCubemapMipped(std::filesystem::path path, bool hdr, int mipLevels
       void* data(nullptr);
 
       if (hdr) {
-        std::cout << "Imported: " << filepath << " - " << width << 'x' << height << 'x' << channels << std::endl;
         data = stbi_loadf(filepath.c_str(), &width, &height, &channels, 3);
       } else {
         data = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
@@ -110,6 +109,7 @@ unsigned createCubemapMipped(std::filesystem::path path, bool hdr, int mipLevels
       // border,
       //                   GLenum format, GLenum type, const void* data);
       if (hdr) {
+        std::cout << "Imported: " << filepath << " - " << width << 'x' << height << 'x' << channels << std::endl;
         glTexImage2D(faceDir, mip, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
       } else {
         glTexImage2D(faceDir, mip, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
@@ -119,7 +119,7 @@ unsigned createCubemapMipped(std::filesystem::path path, bool hdr, int mipLevels
   }
 
   // cubemap texture parameters
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);

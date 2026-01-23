@@ -1,6 +1,4 @@
-#include "Application/Context.h"
-
-#include "Application/Event.h"
+#pragma once
 
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -10,9 +8,10 @@
 #include <stdexcept>
 #include <variant>
 
-std::queue<Event> Context::eventQueue;
+#include "Application/Event.h"
 
-Context::Context(std::string_view title, glm::vec2 size) noexcept(false) {
+namespace gfx {
+GLFWwindow* createGLFWwindow(std::string_view title, unsigned width, unsigned height) noexcept(false) {
   // Setup openGL
   if (glfwInit() != GLFW_TRUE) {
     throw std::runtime_error("Could not initialize glfw");
@@ -23,7 +22,7 @@ Context::Context(std::string_view title, glm::vec2 size) noexcept(false) {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   // Create Window
-  window = glfwCreateWindow(size.x, size.y, title.data(), nullptr, nullptr);
+  GLFWwindow* window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
   if (window == nullptr) {
     glfwTerminate();
     throw std::runtime_error("Could not create glfw context");
@@ -46,7 +45,7 @@ Context::Context(std::string_view title, glm::vec2 size) noexcept(false) {
     event.scancode = scancode;
     event.action = action;
     event.mods = mods;
-    Context::eventQueue.emplace(EventType::kKeyboardEvent, event);
+    eventQueue.emplace(EventType::kKeyboardEvent, event);
   });
 
   glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
@@ -54,21 +53,21 @@ Context::Context(std::string_view title, glm::vec2 size) noexcept(false) {
     event.button = button;
     event.action = action;
     event.mods = mods;
-    Context::eventQueue.emplace(EventType::kMouseButtonEvent, event);
+    eventQueue.emplace(EventType::kMouseButtonEvent, event);
   });
 
-  glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos){
+  glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
     MousePositionEvent event;
     event.xpos = static_cast<float>(xpos);
     event.ypos = static_cast<float>(ypos);
-    Context::eventQueue.emplace(EventType::kMousePositionEvent, event);
+    eventQueue.emplace(EventType::kMousePositionEvent, event);
   });
 
   glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
     ScrollEvent event;
     event.dx = static_cast<float>(xoffset);
     event.dy = static_cast<float>(yoffset);
-    Context::eventQueue.emplace(EventType::kScrollEvent, event);
+    eventQueue.emplace(EventType::kScrollEvent, event);
   });
 
   // Load glad
@@ -76,9 +75,13 @@ Context::Context(std::string_view title, glm::vec2 size) noexcept(false) {
     glfwTerminate();
     throw std::runtime_error("Could not initialize glad");
   }
+
+  return window;
 }
 
-Context::~Context() noexcept {
+inline void destroyGLFWwindow(GLFWwindow* window) {
   glfwDestroyWindow(window);
   glfwTerminate();
 }
+
+}  // namespace gfx

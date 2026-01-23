@@ -81,10 +81,10 @@ void Camera::panAboutViewport(const glm::vec2 delta) {
   // rotation matrix for these values
   glm::mat4 model(1);
   auto upVector = glm::vec3(0, 1, 0);
-  model = glm::rotate(model, glm::radians(Yaw), upVector);
+  model = glm::rotate(model, glm::radians(yaw_deg), upVector);
   // // we have pitch (up down spherically)
   auto pitchVector = glm::vec3(1, 0, 0);
-  model = glm::rotate(model, glm::radians(Pitch), pitchVector);
+  model = glm::rotate(model, glm::radians(pitch_deg), pitchVector);
 
   auto right4 = glm::vec4(1, 0, 0, 1);
   auto up4 = glm::vec4(0, 1, 0, 1);
@@ -111,18 +111,18 @@ void Camera::panAboutViewport(const glm::vec2 delta) {
 void Camera::rotateAboutOrigin(const glm::vec2 delta) {
   // rotate the camera about the origin
   // update the right, up, and forward vectors
-  Pitch += -delta.y;
-  Yaw += -delta.x;
+  pitch_deg += -delta.y;
+  yaw_deg += -delta.x;
   
   glm::mat4 model(1);
   // translate to global origin
   model = glm::translate(model, -origin);
   // yaw (left right spherically)
   auto upVector = glm::vec3(0, 1, 0);
-  model = glm::rotate(model, glm::radians(Yaw), upVector);
+  model = glm::rotate(model, glm::radians(yaw_deg), upVector);
   // // we have pitch (up down spherically)
   auto pitchVector = glm::vec3(1, 0, 0);
-  model = glm::rotate(model, glm::radians(Pitch), pitchVector);
+  model = glm::rotate(model, glm::radians(pitch_deg), pitchVector);
   // translate back to custom origin
   model = glm::translate(model, +origin);
 
@@ -139,6 +139,7 @@ void Camera::zoomToOrigin(float travel) {
   // move the position towards the origin up to a distance
   // of 1mm (0.001f), this function is 1/x behavior?
   // everything is unchanged except position
+  // distance = glm::length(position - origin);
   distance = std::max(0.001f, distance - travel);
   // recompute position...
   rotateAboutOrigin({0, 0});

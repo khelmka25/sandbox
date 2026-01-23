@@ -51,7 +51,6 @@ CubePrimitive::~CubePrimitive() noexcept(true) {
 void CubePrimitive::draw(Shader* shader) {
   // draw the vertices
   glBindVertexArray(vertexArrayHandle);
-  shader->setMat4("model", model);
   glDrawArrays(GL_TRIANGLES, 0, 36);
   glBindVertexArray(0);
 }

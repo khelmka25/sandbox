@@ -120,6 +120,9 @@ int Shader::findUniformLocation(std::string_view name) {
     return location;
   }
   auto const location = glGetUniformLocation(this->programHandle, name.data());
+  if (location < 0) {
+    std::cout << "invalid uniform name: " << name << std::endl;
+  }
   uniformLocations.insert({name, location});
   return location;
 }

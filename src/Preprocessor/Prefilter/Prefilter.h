@@ -16,7 +16,7 @@
 
 namespace prefilter {
 namespace detail {
-inline const int maxMipLevels = 6;
+inline const int maxMipLevels = 5;
 
 // Prefilter Map
 inline unsigned prefilterMap;
@@ -83,7 +83,8 @@ inline void run() {
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, common::captureRBO);
 
   detail::createPrefilterMap();
-
+// color-stream
+// serial-device
   std::cout << "[prefilter] Setup Shading" << std::endl;
   glUseProgram(prefilterShader.handle());
   glUniform1i(glGetUniformLocation(prefilterShader.handle(), "environmentMap"), 0);
