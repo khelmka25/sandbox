@@ -16,7 +16,7 @@ class Shader {
 
   static std::string loadShaderCode(std::string path) noexcept(false);
 
-  void enable();
+  void use();
   void disable();
 
   void setBool(std::string_view name, bool value);

@@ -101,7 +101,7 @@ std::string Shader::loadShaderCode(std::string path) noexcept(false) {
   return source_code;
 }
 
-void Shader::enable() {
+void Shader::use() {
   glUseProgram(programHandle);
 }
 

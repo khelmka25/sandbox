@@ -4,9 +4,10 @@
 
 #include "Camera/Camera.h"
 #include "Application/Window.h"
-#include "Preprocessor/BrdfLut/BrdfLut.h"
-#include "Preprocessor/Irradiance/Irradiance.h"
-#include "Preprocessor/Prefilter/Prefilter.h"
+#include "Preprocessor/BrdfLut.h"
+#include "Preprocessor/Irradiance.h"
+#include "Preprocessor/Prefilter.h"
+#include "Preprocessor/Conversion.h"
 #include "Object/CubePrimitive.h"
 #include "Graphics/Texture/Texture.h"
 
@@ -18,29 +19,65 @@ int main(int argc, char** argv) {
   const auto height = 360u;
   GLFWwindow* window = gfx::createGLFWwindow(title, width, height);
 
-  Camera camera("camera_1", {0, 0, 3}, {0, 0, 0});
+  Camera camera("cam"sv, {0, 0, 0}, {0, 1, 0}, {1, 0, 0}, 3.f, 0.1f, 0.f, 0.f);
 
+  // PBL + IBL
+  unsigned envCubemap;
+  unsigned irradianceMap;
+  unsigned prefilterMap;
+  unsigned brdfLUT;
   // Parse the command line, generate new textures if req
-  argh::parser cmdl(argv, argc);
-  if (cmdl.operator[]({"-g"})) {
+  // "-g/--gen <filename.hdr>" generates a new set of hdr maps
+  // "-c/--cache" uses the cached generated textures 
+  argh::parser cmdl({"-f", "--file"});
+  cmdl.parse(argc, argv);
+  if (cmdl[{"-g", "--generate"}]) {
+    std::string filename;
+    cmdl({"f", "file"}) >> filename;
+    std::cout << filename << std::endl;
+    // generate new maps
+    std::filesystem::path dir("assets/textures/input");
+    std::filesystem::path filepath = dir / filename;
+    std::cout << "Generating new maps using: " << filepath << std::endl;
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
-
-    irradiance::run();
-    prefilter::run();
-    brdf_lut::run();
+    // convert the given hdr into a cubemap for use
+    envCubemap = gfx::convertEnvironmentMap(filepath);
+    gfx::exportEnvironmentMap(envCubemap, "assets/textures/input/");
+    // irradiance map: 128x128
+    irradianceMap = gfx::createIrradianceMap(envCubemap, 128);
+    gfx::exportIrradianceCubeMap(irradianceMap, 128, "assets/textures/irradianceMap/");
+    // prefilter map: 128x128, 5 mips
+    prefilterMap = gfx::createPrefilterMap(envCubemap, 128, 5);
+    gfx::exportPrefilterMap(prefilterMap, 128, 5, "assets/textures/prefilterMap/");
+    // BRDF-LUT: 512x512
+    brdfLUT = gfx::createBrdfLutTexture(512);
+    gfx::exportBrdfLutTexture(brdfLUT, 512, "assets/textures/brdfLut/brdfLut.hdr");
+  } else if (cmdl[{"-c", "--cache"}]) {
+    std::cout << "Using previously generated maps" << std::endl;
+    envCubemap = gfx::createHdrCubemap("assets/textures/input/");
+    irradianceMap = gfx::createHdrCubemap("assets/textures/irradianceMap/");
+    prefilterMap = gfx::createHdrCubemapMipped("assets/textures/prefilterMap/", 5);
+    brdfLUT = gfx::createHdrTexture("assets/textures/brdfLut/brdfLut.hdr");
+  } else {
+    std::cout << "Usage:" << std::endl;
+    std::cout << argv[0] << "--gen photo_studio_01_1k.hdr" << std::endl;
+    std::cout << argv[0] << "--cache" << std::endl;
+    return -1;
   }
 
   glEnable(GL_DEPTH_TEST);
 
+  glViewport(0, 0, 640, 360);
+  
   // Shaders: cubemap skybox shader
-  Shader skyboxShader("assets/shaders/skybox/vertex.glsl", "assets/shaders/skybox/fragment.glsl");
+  Shader skyboxShader("assets/shaders/background.vs", "assets/shaders/background.fs");
   // Shaders: pbr + ibl shader
-  Shader objectShader("assets/shaders/object/vertex.glsl", "assets/shaders/object/fragment.glsl");
+  Shader objectShader("assets/shaders/pbr.vs", "assets/shaders/pbr.fs");
 
   // Object: skybox
   CubePrimitive skybox;
-  unsigned skyboxCubemap = gfx::createHdrCubemap("assets/textures/irradiance/");
+  // unsigned skyboxCubemap = gfx::createHdrCubemap("assets/textures/input/");
 
   // Objects
   std::array<CubePrimitive, 7ull> cubes;
@@ -63,19 +100,14 @@ int main(int argc, char** argv) {
   albedos[4] = glm::vec3(0, 1.f, 0);
   albedos[5] = glm::vec3(0, 0.5f, 1.f);
   albedos[6] = glm::vec3(0.5f, 0, 1);
-
-  // PBL + IBL
-  unsigned irradianceMap = gfx::createHdrCubemap("assets/textures/irradiance/");
-  unsigned prefilterMap = gfx::createHdrCubemapMipped("assets/textures/prefilter/", 5);
-  unsigned brdfLUT = gfx::createHdrTexture("assets/textures/brdf-lut/brdf-lut.hdr");
-
+  
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // draw models inside the scence
-    objectShader.enable();
+    objectShader.use();
 
     // IBL
     objectShader.setInt("irradianceMap", 0);
@@ -92,38 +124,40 @@ int main(int argc, char** argv) {
     glBindTexture(GL_TEXTURE_2D, brdfLUT);
 
     // Camera
-    objectShader.setVec3("cameraPos", camera.position);
+    objectShader.setVec3("camPos", camera.position());
 
     // Model, View, Projection
     auto model = glm::mat4(1.0f);
     auto view = camera.view();
     auto projection = glm::perspective(glm::radians(70.f), 16.f / 9.f, 0.1f, 100.0f);
+    // auto projection = glm::ortho(-1.f, 1.f, -1.f, 1.f, 0.1f, 10.f);
 
     objectShader.setMat4("view", view);
     objectShader.setMat4("projection", projection);
 
     // Set the properties of the objects
     objectShader.setFloat("metallic", 0.1f);
-    objectShader.setFloat("roughness", 0.8f);
+    objectShader.setFloat("roughness", 0.3f);
     objectShader.setFloat("ao", 0.6f);
 
     // draw all objects:
     for (int i = 0; i < cubes.size(); i++) {
       objectShader.setVec3("albedo", albedos[i]);
       objectShader.setMat4("model", cubes[i].model);
+      objectShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(cubes[i].model))));
       cubes[i].draw(&objectShader);
     }
 
     // change depth function so depth test passes when values are equal to depth buffer's content
     glDepthFunc(GL_LEQUAL);
-    skyboxShader.enable();
+    skyboxShader.use();
     // remove translation from the view matrix
     view = glm::mat4(glm::mat3(camera.view()));
     skyboxShader.setMat4("view", view);
     skyboxShader.setMat4("projection", projection);
-    skyboxShader.setMat4("skybox", 0);
+    skyboxShader.setMat4("environmentMap", 0);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
     skybox.draw(&skyboxShader);
     // set depth function back to default
     glDepthFunc(GL_LESS);

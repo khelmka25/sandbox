@@ -1,8 +1,8 @@
 #include "Camera/Camera.h"
 
-#include <glm/gtc/quaternion.hpp>
-
 #include <GLFW/glfw3.h>
+
+#include <glm/gtc/quaternion.hpp>
 
 void Camera::handleKeyboardEvent(const KeyboardEvent& e) {
   if (e.key == GLFW_KEY_LEFT_CONTROL) {
@@ -17,19 +17,19 @@ void Camera::handleKeyboardEvent(const KeyboardEvent& e) {
   }
 
   if (e.key == GLFW_KEY_UP) {
-    rotateAboutOrigin({0, +0.5f});
+    rotateVertical(+0.5f);
   }
 
   if (e.key == GLFW_KEY_DOWN) {
-    rotateAboutOrigin({0, -0.5f});
+    rotateVertical(-0.5f);
   }
 
   if (e.key == GLFW_KEY_LEFT) {
-    rotateAboutOrigin({+0.5f, 0});
+    rotateHorizontal(+0.5f);
   }
 
   if (e.key == GLFW_KEY_RIGHT) {
-    rotateAboutOrigin({-0.5f, 0});
+    rotateHorizontal(-0.5f);
   }
 }
 
@@ -53,94 +53,70 @@ void Camera::handlePositionEvent(const MousePositionEvent& e) {
   xposPrev = e.xpos;
   yposPrev = e.ypos;
 
-  dx *= positionSensitivity;
-  dy *= positionSensitivity;
-
   // if middle mouse pressed, rotate about origin
   // if ctrl + middle mouse pressed, pan about viewport
   if (scrollPressed) {
     if (ctrlPressed) {
       // pan about viewport
-      panAboutViewport({dx * positionSensitivity, dy * positionSensitivity});
+      translateVertical(dy * 0.01f);
+      translateHorizontal(dx * 0.01f);
+      recomputeInternals();
     } else {
       // // rotate about origin, pretty involved process...
-      rotateAboutOrigin({dx, dy});
+      rotateVertical(dy * 0.5f);
+      rotateHorizontal(dx * 0.5f);
+      recomputeInternals();
     }
   }
 }
 
 void Camera::handleScrollEvent(const ScrollEvent& e) {
-  const auto f = e.dy * scrollSensitivity;
-  zoomToOrigin(f);
+  zoom(e.dy * scrollSensitivity);
+  recomputeInternals();
 }
 
-void Camera::panAboutViewport(const glm::vec2 delta) {
-  // goal: compute new right and up vectors at the given angles
-  // then move the origin and position along these vectors
+void Camera::recomputeInternals() {
+  // Calculate sines / cosines of angles
+  const auto sineTheta = std::sin(glm::radians(theta));
+  const auto cosineTheta = std::cos(glm::radians(theta));
+  const auto sinePhi = std::sin(glm::radians(phi));
+  const auto cosinePhi = std::cos(glm::radians(phi));
 
-  // rotation matrix for these values
-  glm::mat4 model(1);
-  auto upVector = glm::vec3(0, 1, 0);
-  model = glm::rotate(model, glm::radians(yaw_deg), upVector);
-  // // we have pitch (up down spherically)
-  auto pitchVector = glm::vec3(1, 0, 0);
-  model = glm::rotate(model, glm::radians(pitch_deg), pitchVector);
+  // Calculate the position vector
+  forwards.x = cosinePhi * cosineTheta;
+  forwards.y = sinePhi;
+  forwards.z = cosinePhi * sineTheta;
 
-  auto right4 = glm::vec4(1, 0, 0, 1);
-  auto up4 = glm::vec4(0, 1, 0, 1);
-  // apply the rotation matrix about
-  right4 = model * right4;
-  up4 = model * up4;
-    
-  auto right = glm::vec3(right4);
-  auto up = glm::vec3(up4);
+  // Calculate the rightwards vector
+  const auto worldUp = glm::vec3(0, 1, 0);
+  rightwards = glm::normalize(glm::cross(forwards, worldUp));
 
-  // pan the camera by moving up and rightward along the vectors
-  // also move the origin the same amount
-  auto travelRightwards = -right * delta.x;
-  auto travelUpwards = up * delta.y;
+  // Calculate the upwards vector
+  upwards = glm::normalize(glm::cross(rightwards, forwards));
 
-  auto offset = travelRightwards + travelUpwards;
+  // Calculate the position vector
+  positionVector = forwards * radius;
 
-  origin = origin + offset;
-  // recompute position...
-  rotateAboutOrigin({0, 0});
-  std::cout << "origin" << origin.x << ',' << origin.y << ',' << origin.z << std::endl;
+  // Calculate the view matrix
+  viewMatrix = glm::lookAt(positionVector + origin, origin, upwards);
 }
 
-void Camera::rotateAboutOrigin(const glm::vec2 delta) {
-  // rotate the camera about the origin
-  // update the right, up, and forward vectors
-  pitch_deg += -delta.y;
-  yaw_deg += -delta.x;
-  
-  glm::mat4 model(1);
-  // translate to global origin
-  model = glm::translate(model, -origin);
-  // yaw (left right spherically)
-  auto upVector = glm::vec3(0, 1, 0);
-  model = glm::rotate(model, glm::radians(yaw_deg), upVector);
-  // // we have pitch (up down spherically)
-  auto pitchVector = glm::vec3(1, 0, 0);
-  model = glm::rotate(model, glm::radians(pitch_deg), pitchVector);
-  // translate back to custom origin
-  model = glm::translate(model, +origin);
-
-  // update the position
-  glm::vec4 pos4(origin.x, origin.y, origin.z + distance, 1.f);
-  pos4 = model * pos4;
-
-  position = glm::vec3(pos4);
-
-  std::cout << position.x << ',' << position.y << ',' << position.z << std::endl;
+void Camera::rotateVertical(float angle_deg) {
+  phi = std::clamp(phi + angle_deg, -89.0f, 89.0f);
 }
 
-void Camera::zoomToOrigin(float travel) {
-  // move the position towards the origin up to a distance
-  // of 1mm (0.001f), this function is 1/x behavior?
-  // everything is unchanged except position
-  // distance = glm::length(position - origin);
-  distance = std::max(0.001f, distance - travel);
-  // recompute position...
-  rotateAboutOrigin({0, 0});
+void Camera::rotateHorizontal(float angle_deg) {
+  theta += angle_deg;
+}
+
+void Camera::zoom(float distance) {
+  radius = std::max(minRadius, radius - distance);
+}
+
+void Camera::translateVertical(float distance) {
+  origin += upwards * distance;
+}
+
+void Camera::translateHorizontal(float distance) {
+  origin += rightwards * distance;
 }
