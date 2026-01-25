@@ -31,7 +31,9 @@ class Camera {
   inline glm::vec3 position() { return positionVector + origin; }
 
   // returns the view matrix calculated using Euler Angles and the LookAt Matrix
-  inline glm::mat4 view() { return viewMatrix; }
+  inline const glm::mat4& view() { return viewMatrix; }
+
+  inline const glm::mat4& orbit() { return orbitModel; } 
 
  public:
   // controller style: Fusion 360-esque
@@ -69,6 +71,7 @@ class Camera {
 
   glm::mat4 viewMatrix;
   glm::vec3 positionVector;
+  glm::mat4 orbitModel;
 
   // constants
   const float positionSensitivity;

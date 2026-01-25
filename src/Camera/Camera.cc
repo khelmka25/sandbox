@@ -99,6 +99,9 @@ void Camera::recomputeInternals() {
 
   // Calculate the view matrix
   viewMatrix = glm::lookAt(positionVector + origin, origin, upwards);
+
+  /* Recompute orbit model */
+  orbitModel = glm::translate(glm::mat4(1), origin);
 }
 
 void Camera::rotateVertical(float angle_deg) {

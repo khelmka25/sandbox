@@ -101,8 +101,21 @@ int main(int argc, char** argv) {
   albedos[5] = glm::vec3(0, 0.5f, 1.f);
   albedos[6] = glm::vec3(0.5f, 0, 1);
 
-
+  // create position for the camera to orbit around
+  glPointSize(3.f);
+  unsigned orbitVAO, orbitVBO;
+  glGenVertexArrays(1, &orbitVAO);
+  glGenBuffers(1, &orbitVBO);
+  glBindVertexArray(orbitVAO);
+  glm::vec3 orbit{};
+  glBindBuffer(GL_ARRAY_BUFFER, orbitVBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(orbit), glm::value_ptr(orbit), GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  glBindVertexArray(0);
   
+  Shader orbitShader("assets/shaders/orbit.vs", "assets/shaders/orbit.fs");
+
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -130,7 +143,7 @@ int main(int argc, char** argv) {
 
     // Model, View, Projection
     auto model = glm::mat4(1.0f);
-    auto view = camera.view();
+    const auto& view = camera.view();
     // use orthographic projection?
     auto projection = glm::perspective(glm::radians(70.f), 16.f / 9.f, 0.1f, 100.0f);
     // auto projection = glm::ortho(-camera.radius, camera.radius, -camera.radius, camera.radius, 0.f, 100.f);
@@ -151,13 +164,25 @@ int main(int argc, char** argv) {
       cubes[i].draw(&objectShader);
     }
 
+    /* Draw the orbit position of the camera */
+    glDepthFunc(GL_ALWAYS);
+    glBindVertexArray(orbitVAO);
+    // draw the orbit position
+    orbitShader.use();
+    orbitShader.setVec3("albedo", glm::vec3(0.25, 1, 0.25));
+    orbitShader.setMat4("model", camera.orbit());
+    orbitShader.setMat4("view", camera.view());
+    orbitShader.setMat4("projection", projection);
+    glDrawArrays(GL_POINTS, 0, 1);
+    glBindVertexArray(0);
+    glDepthFunc(GL_LESS);
+    
     /* Draw the background */
     // change depth function so depth test passes when values are equal to depth buffer's content
     glDepthFunc(GL_LEQUAL);
     backgroundShader.use();
     // remove translation from the view matrix
-    view = glm::mat4(glm::mat3(camera.view()));
-    backgroundShader.setMat4("view", view);
+    backgroundShader.setMat4("view", glm::mat4(glm::mat3(view)));
     backgroundShader.setMat4("projection", projection);
     backgroundShader.setMat4("environmentMap", 0);
     glActiveTexture(GL_TEXTURE0);
