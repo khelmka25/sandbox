@@ -1,34 +1,29 @@
-
-
 #include <argh.h>
 
-#include "Camera/Camera.h"
 #include "Application/Window.h"
+#include "Camera/Camera.h"
+#include "Graphics/Texture/Texture.h"
+#include "Object/CubePrimitive.h"
+#include "Object/Model/Model.h"
 #include "Preprocessor/BrdfLut.h"
+#include "Preprocessor/Conversion.h"
 #include "Preprocessor/Irradiance.h"
 #include "Preprocessor/Prefilter.h"
-#include "Preprocessor/Conversion.h"
-#include "Object/CubePrimitive.h"
-#include "Graphics/Texture/Texture.h"
 
 using namespace std::string_view_literals;
 
 int main(int argc, char** argv) {
+  // Create the window
   const auto title = "OpenGL Window"sv;
-  const auto width = 640u;
-  const auto height = 360u;
-  GLFWwindow* window = gfx::createGLFWwindow(title, width, height);
-
-  Camera camera("cam"sv, {0, 0, 0}, {0, 1, 0}, {1, 0, 0}, 3.f, 0.1f, 0.f, 0.f);
+  const auto displayWidth = 640u;
+  const auto displayHeight = 360u;
+  GLFWwindow* window = gfx::createGLFWwindow(title, displayWidth, displayHeight);
 
   // PBL + IBL
-  unsigned envCubemap;
-  unsigned irradianceMap;
-  unsigned prefilterMap;
-  unsigned brdfLUT;
+  unsigned envCubemap, irradianceMap, prefilterMap, brdfLUT;
   // Parse the command line, generate new textures if req
   // "-g/--gen <filename.hdr>" generates a new set of hdr maps
-  // "-c/--cache" uses the cached generated textures 
+  // "-c/--cache" uses the cached generated textures
   argh::parser cmdl({"-f", "--file"});
   cmdl.parse(argc, argv);
   if (cmdl[{"-g", "--generate"}]) {
@@ -36,9 +31,11 @@ int main(int argc, char** argv) {
     cmdl({"f", "file"}) >> filename;
     std::cout << filename << std::endl;
     // generate new maps
-    std::filesystem::path dir("assets/textures/input");
-    std::filesystem::path filepath = dir / filename;
+    auto dir = std::filesystem::path("assets/textures/input");
+    auto filepath = dir / filename;
     std::cout << "Generating new maps using: " << filepath << std::endl;
+
+    // begin generation
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
     // convert the given hdr into a cubemap for use
@@ -53,6 +50,11 @@ int main(int argc, char** argv) {
     // BRDF-LUT: 512x512
     brdfLUT = gfx::createBrdfLutTexture(512);
     gfx::exportBrdfLutTexture(brdfLUT, 512, "assets/textures/brdfLut/brdfLut.hdr");
+    // end generation
+    glEnable(GL_DEPTH_TEST);
+
+    // reset the viewport to the desired resolution
+    glViewport(0, 0, displayWidth, displayHeight);
   } else if (cmdl[{"-c", "--cache"}]) {
     std::cout << "Using previously generated maps" << std::endl;
     envCubemap = gfx::createHdrCubemap("assets/textures/input/");
@@ -66,18 +68,16 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  glEnable(GL_DEPTH_TEST);
+  // Create the camera
+  Camera camera("cam"sv, {0, 0, 0}, {0, 1, 0}, {1, 0, 0}, 3.f, 0.1f, 0.f, 0.f);
 
-  glViewport(0, 0, 640, 360);
-  
-  // Shaders: cubemap skybox shader
-  Shader skyboxShader("assets/shaders/background.vs", "assets/shaders/background.fs");
+  // Shaders: cubemap background shader
+  Shader backgroundShader("assets/shaders/background.vs", "assets/shaders/background.fs");
   // Shaders: pbr + ibl shader
   Shader objectShader("assets/shaders/pbr.vs", "assets/shaders/pbr.fs");
 
-  // Object: skybox
-  CubePrimitive skybox;
-  // unsigned skyboxCubemap = gfx::createHdrCubemap("assets/textures/input/");
+  // Object: background
+  CubePrimitive background;
 
   // Objects
   std::array<CubePrimitive, 7ull> cubes;
@@ -100,6 +100,8 @@ int main(int argc, char** argv) {
   albedos[4] = glm::vec3(0, 1.f, 0);
   albedos[5] = glm::vec3(0, 0.5f, 1.f);
   albedos[6] = glm::vec3(0.5f, 0, 1);
+
+
   
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
@@ -129,8 +131,9 @@ int main(int argc, char** argv) {
     // Model, View, Projection
     auto model = glm::mat4(1.0f);
     auto view = camera.view();
+    // use orthographic projection?
     auto projection = glm::perspective(glm::radians(70.f), 16.f / 9.f, 0.1f, 100.0f);
-    // auto projection = glm::ortho(-1.f, 1.f, -1.f, 1.f, 0.1f, 10.f);
+    // auto projection = glm::ortho(-camera.radius, camera.radius, -camera.radius, camera.radius, 0.f, 100.f);
 
     objectShader.setMat4("view", view);
     objectShader.setMat4("projection", projection);
@@ -148,20 +151,22 @@ int main(int argc, char** argv) {
       cubes[i].draw(&objectShader);
     }
 
+    /* Draw the background */
     // change depth function so depth test passes when values are equal to depth buffer's content
     glDepthFunc(GL_LEQUAL);
-    skyboxShader.use();
+    backgroundShader.use();
     // remove translation from the view matrix
     view = glm::mat4(glm::mat3(camera.view()));
-    skyboxShader.setMat4("view", view);
-    skyboxShader.setMat4("projection", projection);
-    skyboxShader.setMat4("environmentMap", 0);
+    backgroundShader.setMat4("view", view);
+    backgroundShader.setMat4("projection", projection);
+    backgroundShader.setMat4("environmentMap", 0);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-    skybox.draw(&skyboxShader);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    background.draw(&backgroundShader);
     // set depth function back to default
     glDepthFunc(GL_LESS);
 
+    /* Flush results to screen and poll events */
     glfwSwapBuffers(window);
     glfwPollEvents();
 

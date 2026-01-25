@@ -9,7 +9,7 @@
                 "${workspaceFolder}/deps/glad/include/",
                 "${workspaceFolder}/deps/stb/",
                 "${workspaceFolder}/deps/argh/",
-                // "${workspaceFolder}/deps/assimp/include/"
+                "${workspaceFolder}/deps/assimp/include/"
             ],
             "defines": [],
             "cStandard": "c17",
