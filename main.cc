@@ -5,6 +5,9 @@
 #include "Graphics/Texture/Texture.h"
 #include "Object/CubePrimitive.h"
 #include "Object/Model/Model.h"
+#include "Object/Widget/Axes.h"
+#include "Object/Widget/Grid.h"
+#include "Object/Widget/Orbit.h"
 #include "Preprocessor/BrdfLut.h"
 #include "Preprocessor/Conversion.h"
 #include "Preprocessor/Irradiance.h"
@@ -71,63 +74,48 @@ int main(int argc, char** argv) {
   // Create the camera
   Camera camera("cam"sv, {0, 0, 0}, {0, 1, 0}, {1, 0, 0}, 3.f, 0.1f, 0.f, 0.f);
 
-  // Shaders: cubemap background shader
-  Shader backgroundShader("assets/shaders/background.vs", "assets/shaders/background.fs");
-  // Shaders: pbr + ibl shader
-  Shader objectShader("assets/shaders/pbr.vs", "assets/shaders/pbr.fs");
+  // Widgets
+  Shader widgetShader("assets/shaders/widget.vs", "assets/shaders/widget.fs");
+  std::unique_ptr<Object> orbitObject = std::make_unique<Orbit>();
+  std::unique_ptr<Object> axesObject = std::make_unique<Axes>(glm::vec3(-5, 0, -5));
+  std::unique_ptr<Object> gridObject = std::make_unique<Grid>();
 
   // Object: background
-  CubePrimitive background;
+  Shader backgroundShader("assets/shaders/background.vs", "assets/shaders/background.fs");
+  CubePrimitive background(glm::vec3(0, 0, 0), glm::vec4(1.f, 1.f, 1.f, 1));
 
-  // Objects
-  std::array<CubePrimitive, 7ull> cubes;
-  cubes[0].translate({0, 0, 0});
+  // Shaders: pbr + ibl shader
+  Shader pbrShader("assets/shaders/pbr.vs", "assets/shaders/pbr.fs");
+  std::vector<std::unique_ptr<Object>> objects;
+  // at origin
+  objects.push_back(std::make_unique<CubePrimitive>(glm::vec3(0, 0, 0), glm::vec4(1.f, 1.f, 1.f, 1)));
   // px, nx, py, ny, pz, nz
-  cubes[1].translate({+3, 0, 0});
-  cubes[2].translate({-3, 0, 0});
-  cubes[3].translate({0, +3, 0});
-  cubes[4].translate({0, -3, 0});
-  cubes[5].translate({0, 0, +3});
-  cubes[6].translate({0, 0, -3});
+  objects.push_back(std::make_unique<CubePrimitive>(glm::vec3(+3, 0, 0), glm::vec4(1.f, 0, 0, 1)));
+  objects.push_back(std::make_unique<CubePrimitive>(glm::vec3(-3, 0, 0), glm::vec4(1.f, 0.5f, 0, 1)));
+  objects.push_back(std::make_unique<CubePrimitive>(glm::vec3(0, +3, 0), glm::vec4(1.f, 1.f, 0, 1)));
+  objects.push_back(std::make_unique<CubePrimitive>(glm::vec3(0, -3, 0), glm::vec4(0, 1.f, 0, 1)));
+  objects.push_back(std::make_unique<CubePrimitive>(glm::vec3(0, 0, +3), glm::vec4(0, 0.5f, 1.f, 1)));
+  objects.push_back(std::make_unique<CubePrimitive>(glm::vec3(0, 0, -3), glm::vec4(0.5f, 0, 1, 1)));
 
-  // Object Colors
-  std::array<glm::vec3, 7ull> albedos;
-  albedos[0] = glm::vec3(1.f, 1.f, 1.f);
-  // red, orange, yellow, green, blue, purple
-  albedos[1] = glm::vec3(1.f, 0, 0);
-  albedos[2] = glm::vec3(1.f, 0.5f, 0);
-  albedos[3] = glm::vec3(1.f, 1.f, 0);
-  albedos[4] = glm::vec3(0, 1.f, 0);
-  albedos[5] = glm::vec3(0, 0.5f, 1.f);
-  albedos[6] = glm::vec3(0.5f, 0, 1);
+  // models...
+  // objects.push_back(std::make_unique<Model>("assets/objects/..."));
 
-  // create position for the camera to orbit around
-  glPointSize(3.f);
-  unsigned orbitVAO, orbitVBO;
-  glGenVertexArrays(1, &orbitVAO);
-  glGenBuffers(1, &orbitVBO);
-  glBindVertexArray(orbitVAO);
-  glm::vec3 orbit{};
-  glBindBuffer(GL_ARRAY_BUFFER, orbitVBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(orbit), glm::value_ptr(orbit), GL_STATIC_DRAW);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glBindVertexArray(0);
-  
-  Shader orbitShader("assets/shaders/orbit.vs", "assets/shaders/orbit.fs");
+  glPointSize(4.f);
+  glLineWidth(2.f);
+  glEnable(GL_MULTISAMPLE);
 
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClearColor(1.f, 1.f, 1.f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // draw models inside the scence
-    objectShader.use();
+    pbrShader.use();
 
     // IBL
-    objectShader.setInt("irradianceMap", 0);
-    objectShader.setInt("prefilterMap", 1);
-    objectShader.setInt("brdfLUT", 2);
+    pbrShader.setInt("irradianceMap", 0);
+    pbrShader.setInt("prefilterMap", 1);
+    pbrShader.setInt("brdfLUT", 2);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
@@ -139,44 +127,53 @@ int main(int argc, char** argv) {
     glBindTexture(GL_TEXTURE_2D, brdfLUT);
 
     // Camera
-    objectShader.setVec3("camPos", camera.position());
+    pbrShader.setVec3("camPos", camera.position());
 
     // Model, View, Projection
-    auto model = glm::mat4(1.0f);
     const auto& view = camera.view();
     // use orthographic projection?
     auto projection = glm::perspective(glm::radians(70.f), 16.f / 9.f, 0.1f, 100.0f);
     // auto projection = glm::ortho(-camera.radius, camera.radius, -camera.radius, camera.radius, 0.f, 100.f);
 
-    objectShader.setMat4("view", view);
-    objectShader.setMat4("projection", projection);
+    pbrShader.setMat4("view", view);
+    pbrShader.setMat4("projection", projection);
 
     // Set the properties of the objects
-    objectShader.setFloat("metallic", 0.1f);
-    objectShader.setFloat("roughness", 0.3f);
-    objectShader.setFloat("ao", 0.6f);
+    pbrShader.setFloat("metallic", 0.1f);
+    pbrShader.setFloat("roughness", 0.3f);
+    pbrShader.setFloat("ao", 0.6f);
 
     // draw all objects:
-    for (int i = 0; i < cubes.size(); i++) {
-      objectShader.setVec3("albedo", albedos[i]);
-      objectShader.setMat4("model", cubes[i].model);
-      objectShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(cubes[i].model))));
-      cubes[i].draw(&objectShader);
+    for (auto& object : objects) {
+      object->draw(&pbrShader);
     }
 
     /* Draw the orbit position of the camera */
     glDepthFunc(GL_ALWAYS);
-    glBindVertexArray(orbitVAO);
-    // draw the orbit position
-    orbitShader.use();
-    orbitShader.setVec3("albedo", glm::vec3(0.25, 1, 0.25));
-    orbitShader.setMat4("model", camera.orbit());
-    orbitShader.setMat4("view", camera.view());
-    orbitShader.setMat4("projection", projection);
-    glDrawArrays(GL_POINTS, 0, 1);
-    glBindVertexArray(0);
+
+    widgetShader.use();
+    glm::mat4 axesModel(1);
+    axesModel = glm::translate(axesModel, glm::vec3(-5.1, 0, -5.1));
+    widgetShader.setMat4("model", axesModel);
+    widgetShader.setMat4("view", camera.view());
+    widgetShader.setMat4("projection", projection);
+    axesObject->draw(&widgetShader);
+
     glDepthFunc(GL_LESS);
-    
+    widgetShader.use();
+    widgetShader.setMat4("model", glm::mat4(1));
+    gridObject->draw(&widgetShader);
+
+    glDepthFunc(GL_ALWAYS);
+
+    // draw the orbit position
+    widgetShader.use();
+    widgetShader.setMat4("model", camera.orbit());
+    widgetShader.setMat4("view", camera.view());
+    widgetShader.setMat4("projection", projection);
+    orbitObject->draw(&widgetShader);
+    glDepthFunc(GL_LESS);
+
     /* Draw the background */
     // change depth function so depth test passes when values are equal to depth buffer's content
     glDepthFunc(GL_LEQUAL);
@@ -186,7 +183,7 @@ int main(int argc, char** argv) {
     backgroundShader.setMat4("projection", projection);
     backgroundShader.setMat4("environmentMap", 0);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
     background.draw(&backgroundShader);
     // set depth function back to default
     glDepthFunc(GL_LESS);

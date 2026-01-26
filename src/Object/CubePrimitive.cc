@@ -30,7 +30,7 @@ float cubeVertices[216] = {
     -0.5f, 0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,
 };
 
-CubePrimitive::CubePrimitive() noexcept(true) : Object() {
+CubePrimitive::CubePrimitive(glm::vec3 t_center, glm::vec4 t_albedo) noexcept(true) : Object(t_center), albedo(t_albedo) {
   // gl setup
   glGenVertexArrays(1, &vertexArrayHandle);
   glGenBuffers(1, &vertexBufferHandle);
@@ -49,6 +49,9 @@ CubePrimitive::~CubePrimitive() noexcept(true) {
 }
 
 void CubePrimitive::draw(Shader* shader) {
+  shader->setVec3("albedo", albedo);
+  shader->setMat4("model", modelMatrix);
+  shader->setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(modelMatrix))));
   // draw the vertices
   glBindVertexArray(vertexArrayHandle);
   glDrawArrays(GL_TRIANGLES, 0, 36);

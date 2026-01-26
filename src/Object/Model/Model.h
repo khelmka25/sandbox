@@ -11,23 +11,24 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <list>
 #include <map>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <list>
 
 #include "Graphics/Shader.h"
 #include "Graphics/Texture/Texture.h"
 #include "Object/Model/Mesh.h"
 #include "Object/Model/Texture.h"
 #include "Object/Model/Vertex.h"
+#include "Object/Object.h"
 
 // a model can have one or more associated meshes
-class Model {
+class Model : public Object {
  public:
   // constructor, expects a filepath to a 3D model.
-  Model(std::filesystem::path path) noexcept(true) {
+  Model(std::filesystem::path path) noexcept(true) : Object(glm::vec3(0)) {
     importModel(path);
 
     for (auto& mesh : meshes) {
@@ -147,7 +148,7 @@ class Model {
 
     // output: indices
     std::vector<unsigned int> indices;
-    
+
     // now wak through each of the mesh's faces (a face is a mesh its triangle)
     // and retrieve the corresponding vertex indices.
     for (unsigned int i = 0; i < mesh->mNumFaces; i++) {

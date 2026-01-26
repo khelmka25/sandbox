@@ -7,11 +7,11 @@
 void Camera::handleKeyboardEvent(const KeyboardEvent& e) {
   if (e.key == GLFW_KEY_LEFT_CONTROL) {
     if (e.action == GLFW_PRESS) {
-      std::cout << "Ctrl Press" << std::endl;
+      // std::cout << "Ctrl Press" << std::endl;
       ctrlPressed = true;
     }
     if (e.action == GLFW_RELEASE) {
-      std::cout << "Ctrl Release" << std::endl;
+      // std::cout << "Ctrl Release" << std::endl;
       ctrlPressed = false;
     }
   }
@@ -37,10 +37,10 @@ void Camera::handleMouseButtonEvent(const MouseButtonEvent& e) {
   // lookfor: middle click with mods
   if (e.button == GLFW_MOUSE_BUTTON_MIDDLE) {
     if (e.action == GLFW_PRESS) {
-      std::cout << "Scroll Press" << std::endl;
+      // std::cout << "Scroll Press" << std::endl;
       scrollPressed = true;
     } else if (e.action == GLFW_RELEASE) {
-      std::cout << "Scroll Release" << std::endl;
+      // std::cout << "Scroll Release" << std::endl;
       scrollPressed = false;
     }
   }
