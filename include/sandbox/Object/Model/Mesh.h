@@ -12,18 +12,19 @@
 #include "Graphics/Shader.h"
 #include "Object/Model/Texture.h"
 #include "Object/Model/Vertex.h"
+#include "Object/Model/Material.h"
 
 class Mesh {
  public:
   Mesh() = default;
   explicit Mesh(std::vector<Vertex>&& t_vertices, std::vector<unsigned int>&& t_indices,
-                std::vector<Texture>&& t_textures)
-      : vertices(std::move(t_vertices)), indices(std::move(t_indices)), textures(std::move(t_textures)) {}
+                Material&& t_material)
+      : vertices(std::move(t_vertices)), indices(std::move(t_indices)), material(std::move(t_material)) {}
 
   Mesh(Mesh&& other)
       : vertices(std::move(other.vertices)),
         indices(std::move(other.indices)),
-        textures(std::move(other.textures)),
+        material(std::move(other.material)),
         VAO(other.VAO),
         VBO(other.VBO),
         EBO(other.EBO) {
@@ -36,7 +37,7 @@ class Mesh {
   Mesh& operator=(Mesh&& other) {
     vertices = std::move(other.vertices);
     indices = std::move(other.indices);
-    textures = std::move(other.textures);
+    material = std::move(other.material);
     // copy and nullify graphics objects
     VAO = other.VAO;
     VBO = other.VBO;
@@ -102,7 +103,7 @@ class Mesh {
   // mesh Data
   std::vector<Vertex> vertices;
   std::vector<unsigned int> indices;
-  std::vector<Texture> textures;
+  Material material;
 
   unsigned int VAO;
   // render data

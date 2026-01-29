@@ -10,6 +10,16 @@ class Object {
     modelMatrix = glm::mat4(1.f);
     modelMatrix = glm::translate(modelMatrix, center);
   }
+
+  // void moveTo(glm::vec3 t_position) {
+  //   position = t_position;
+  // }
+
+  // void rotateTo(float angle, glm::vec3 axis) {
+    
+
+
+  // }
   
   virtual void draw(class Shader* shader) = 0;
 
@@ -52,7 +62,6 @@ class Object {
  protected:
 
   glm::vec3 center;
-  glm::vec3 scale;
   glm::vec3 rotation;
 
   void recomputeInternals() {

@@ -49,7 +49,6 @@ class Model : public Object {
   std::vector<std::unique_ptr<Mesh>> meshes;
 
   void importModel(std::filesystem::path filepath) noexcept(true) {
-    std::cout << "Importing: " << filepath << std::endl;
     /* Attempt to open the model */
     Assimp::Importer import;
     unsigned pFlags{};
@@ -65,8 +64,12 @@ class Model : public Object {
       return;
     }
 
-    std::cout << "Imported: " << filepath << std::endl;
     processNode(scene->mRootNode, scene);
+
+    // print data about the scene
+    std::cout << "Imported:  " << filepath << std::endl;
+    std::cout << "Materials: " << scene->mNumMaterials << std::endl;
+    std::cout << "Meshes:    " << scene->mNumMeshes << std::endl;
   }
 
   // processes a node in a recursive fashion. Processes each individual mesh
@@ -158,16 +161,19 @@ class Model : public Object {
         indices.push_back(face.mIndices[j]);
       }
     }
+    
+    // retrieve material: may be default or otherwise
+    if (mesh->mMaterialIndex > 0) {
+      aiColor4D diffuse;
+      aiMaterial* mat = scene->mMaterials[mesh->mMaterialIndex];
+      if (AI_SUCCESS == aiGetMaterialColor(mat, AI_MATKEY_COLOR_DIFFUSE,&diffuse)) {
+        Material material;
+        material.albedo = glm::vec3(diffuse.r, diffuse.g, diffuse.b);
+        // return a mesh object created from the extracted mesh data
+        return std::make_unique<Mesh>(std::move(vertices), std::move(indices), std::move(material));
+      }
+    }
 
-    // output: textures
-    std::vector<Texture> textures;
-
-    std::cout << "Created mesh: " << std::endl;
-    std::cout << "vertices: " << std::size(vertices) << std::endl;
-    std::cout << "indices: " << std::size(indices) << std::endl;
-    std::cout << "textures: " << std::size(textures) << std::endl;
-
-    // return a mesh object created from the extracted mesh data
-    return std::make_unique<Mesh>(std::move(vertices), std::move(indices), std::move(textures));
+    return std::make_unique<Mesh>(std::move(vertices), std::move(indices), Material{});
   }
 };

@@ -6,7 +6,7 @@ add_library(sandboxlib STATIC ${SANDBOX_SOURCE})
 # add the header files
 target_include_directories(sandboxlib 
   PUBLIC
-  ${CMAKE_SOURCE_DIR}/src
+  ${CMAKE_SOURCE_DIR}/include/sandbox/
   ${CMAKE_SOURCE_DIR}/deps/glfw/include
   ${CMAKE_SOURCE_DIR}/deps/glad/include
   ${CMAKE_SOURCE_DIR}/deps/glm/

@@ -3,7 +3,7 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/src/**",
+                "${workspaceFolder}/include/sandbox/**",
                 "${workspaceFolder}/deps/glm/",
                 "${workspaceFolder}/deps/glfw/include/",
                 "${workspaceFolder}/deps/glad/include/",
