@@ -3,6 +3,7 @@
 
 #include <glad/glad.h>
 
+namespace sb {
 float cubeVertices[216] = {
     // positions          // normals
     -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.5f,  -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,
@@ -57,3 +58,4 @@ void CubePrimitive::draw(Shader* shader) {
   glDrawArrays(GL_TRIANGLES, 0, 36);
   glBindVertexArray(0);
 }
+}  // namespace sb

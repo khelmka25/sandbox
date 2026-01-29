@@ -13,6 +13,7 @@
 #include "Graphics/Shader.h"
 #include "Preprocessor/Common.h"
 
+namespace sb {
 namespace gfx {
 inline unsigned createBrdfLutTexture(int size) {
   // pbr: setup framebuffer
@@ -78,3 +79,4 @@ inline void exportBrdfLutTexture(unsigned texture, unsigned size, std::filesyste
 }
 
 }  // namespace gfx
+}  // namespace sb

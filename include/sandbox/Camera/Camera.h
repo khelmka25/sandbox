@@ -2,13 +2,16 @@
 
 #include <glad/glad.h>
 
-#include <glm/glm.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <string_view>
 
 #include "Application/Event.h"
 
+namespace sb {
 class Camera {
  public:
   explicit Camera(std::string_view t_name, glm::vec3 t_origin, glm::vec3 t_upwards, glm::vec3 t_rightwards,
@@ -83,3 +86,4 @@ class Camera {
   float xposPrev;
   float yposPrev;
 };
+}  // namespace sb

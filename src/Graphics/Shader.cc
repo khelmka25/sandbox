@@ -5,11 +5,13 @@
 
 #include <filesystem>
 #include <fstream>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 #include <utility>
 
 using namespace std::literals::string_view_literals;
 
+namespace sb {
 Shader::Shader(std::filesystem::path vertexPath, std::filesystem::path fragmentPath) {
   /*Vertex Shader*/
 
@@ -183,3 +185,4 @@ void Shader::setMat4(std::string_view name, const glm::mat4& mat) {
   const auto location = findUniformLocation(name);
   glUniformMatrix4fv(location, 1, GL_FALSE, &mat[0][0]);
 }
+}  // namespace sb

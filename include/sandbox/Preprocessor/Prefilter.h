@@ -5,7 +5,9 @@
 
 #include <array>
 #include <format>
-#include <glm/glm.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -14,6 +16,7 @@
 #include "Graphics/Shader.h"
 #include "Preprocessor/Common.h"
 
+namespace sb {
 namespace gfx {
 inline unsigned createPrefilterMap(unsigned envCubemap, int size, int miplevels) {
   // pbr: setup framebuffer
@@ -63,7 +66,7 @@ inline unsigned createPrefilterMap(unsigned envCubemap, int size, int miplevels)
     unsigned int mipWidth = (size >> mip);
     unsigned int mipHeight = (size >> mip);
     if ((mipHeight == 0) || (mipWidth == 0)) {
-      std::cout << "[prefilter] Invalid mip level: " << mip << std::endl; 
+      std::cout << "[prefilter] Invalid mip level: " << mip << std::endl;
       continue;
     }
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
@@ -82,7 +85,7 @@ inline unsigned createPrefilterMap(unsigned envCubemap, int size, int miplevels)
     }
   }
   common::destroyCube();
-  
+
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glDeleteRenderbuffers(1, &captureRBO);
   glDeleteFramebuffers(1, &captureFBO);
@@ -118,3 +121,4 @@ inline void exportPrefilterMap(unsigned cubemap, int size, int mipLevels, std::f
 }
 
 }  // namespace gfx
+}  // namespace sb

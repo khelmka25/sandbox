@@ -4,6 +4,7 @@
 
 #include <filesystem>
 
+namespace sb {
 namespace gfx {
 namespace detail {
 extern unsigned createTexture(std::filesystem::path path, bool hdr);
@@ -11,3 +12,4 @@ extern unsigned createTexture(std::filesystem::path path, bool hdr);
 extern unsigned createHdrTexture(std::filesystem::path path);
 extern unsigned createPngTexture(std::filesystem::path path);
 };
+}  // namespace sb

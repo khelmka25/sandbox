@@ -14,6 +14,7 @@
 #include "Graphics/Shader.h"
 #include "Preprocessor/Common.h"
 
+namespace sb {
 namespace gfx {
 inline unsigned createIrradianceMap(unsigned envCubemap, int size) {
   // pbr: setup framebuffer
@@ -96,3 +97,4 @@ inline void exportIrradianceCubeMap(unsigned cubemap, int size, std::filesystem:
 }
 
 }  // namespace gfx
+}  // namespace sb

@@ -2,6 +2,7 @@
 
 #include "Graphics/Cubemap/Cubemap.h"
 
+namespace sb {
 float skyboxVertices[108] = {
     -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f,
     1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
@@ -46,3 +47,4 @@ void Skybox::draw(Shader* shader) {
   glDrawArrays(GL_TRIANGLES, 0, 36);
   glBindVertexArray(0);
 }
+}  // namespace sb

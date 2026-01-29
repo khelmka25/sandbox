@@ -7,6 +7,7 @@
 #include <initializer_list>
 #include <iostream>
 
+namespace sb {
 namespace gfx {
 namespace detail {
 extern unsigned createCubemap(std::filesystem::path path, bool hdr);
@@ -17,3 +18,4 @@ extern unsigned createHdrCubemap(std::filesystem::path path);
 extern unsigned createPngCubemap(std::filesystem::path path);
 extern unsigned createHdrCubemapMipped(std::filesystem::path path, int mipLevels);
 }  // namespace gfx
+}  // namespace sb

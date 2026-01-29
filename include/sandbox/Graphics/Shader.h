@@ -1,11 +1,13 @@
 #pragma once
 
 #include <filesystem>
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <string_view>
 #include <unordered_map>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
 
+namespace sb {
 class Shader {
  public:
   // load from file
@@ -40,3 +42,4 @@ class Shader {
   // map uniform names to their locations
   std::unordered_map<std::string_view, int> uniformLocations;
 };
+}  // namespace sb

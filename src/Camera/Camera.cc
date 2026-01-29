@@ -4,6 +4,7 @@
 
 #include <glm/gtc/quaternion.hpp>
 
+namespace sb {
 void Camera::handleKeyboardEvent(const KeyboardEvent& e) {
   if (e.key == GLFW_KEY_LEFT_CONTROL) {
     if (e.action == GLFW_PRESS) {
@@ -123,3 +124,4 @@ void Camera::translateVertical(float distance) {
 void Camera::translateHorizontal(float distance) {
   origin += rightwards * distance;
 }
+}  // namespace sb

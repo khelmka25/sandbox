@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <variant>
 
+namespace sb {
 enum class EventType : unsigned {
   kKeyboardEvent,
   kMouseButtonEvent,
@@ -46,3 +47,4 @@ struct Event {
 };
 
 extern std::queue<Event> eventQueue;
+}  // namespace sb

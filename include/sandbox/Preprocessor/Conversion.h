@@ -4,13 +4,16 @@
 #include <stb_image.h>
 
 #include <filesystem>
-#include <glm/glm.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 #include "Graphics/Cubemap/Cubemap.h"
 #include "Graphics/Shader.h"
 #include "Graphics/Texture/Texture.h"
 #include "Preprocessor/Common.h"
 
+namespace sb {
 namespace gfx {
 // convert an hdr environment map into an hdr cubemap texture
 inline unsigned convertEnvironmentMap(std::filesystem::path filepath) {
@@ -130,3 +133,4 @@ inline void exportEnvironmentMap(unsigned cubemap, std::filesystem::path path) {
   }
 }
 }  // namespace gfx
+}  // namespace sb

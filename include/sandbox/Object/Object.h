@@ -1,8 +1,11 @@
 #pragma once
 
-#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
+namespace sb {
 // abstract object class
 class Object {
  public:
@@ -16,11 +19,9 @@ class Object {
   // }
 
   // void rotateTo(float angle, glm::vec3 axis) {
-    
-
 
   // }
-  
+
   virtual void draw(class Shader* shader) = 0;
 
   // required:
@@ -39,7 +40,7 @@ class Object {
     model = glm::translate(model, -center);
     model = glm::rotate(model, angle, axis);
     // model = glm::translate(model, center);
-    
+
     // rotate the center about the point: translate to this new point
     glm::vec4 center4(center, 1);
     glm::mat4 model2(1);
@@ -59,12 +60,11 @@ class Object {
 
   // cached model matrix
   glm::mat4 modelMatrix;
- protected:
 
+ protected:
   glm::vec3 center;
   glm::vec3 rotation;
 
-  void recomputeInternals() {
-
-  }
+  void recomputeInternals() {}
 };
+}  // namespace sb

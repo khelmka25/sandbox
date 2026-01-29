@@ -1,7 +1,8 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <glm/vec3.hpp>
 
+namespace sb {
 struct Vertex {
   Vertex() = default;
 
@@ -12,3 +13,4 @@ struct Vertex {
   // texCoords
   glm::vec2 TexCoords; // 8 bytes
 };
+}  // namespace sb

@@ -8,6 +8,7 @@
 
 using namespace std::literals::string_view_literals;
 
+namespace sb {
 namespace gfx {
 namespace detail {
 unsigned createCubemap(std::filesystem::path path, bool hdr) {
@@ -149,3 +150,4 @@ unsigned createHdrCubemapMipped(std::filesystem::path path, int mipLevels) {
 }
 
 }  // namespace gfx
+}  // namespace sb

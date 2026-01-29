@@ -2,11 +2,14 @@
 
 #include <glad/glad.h>
 
-#include <glm/glm.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <iostream>
 
 #include "Object/Object.h"
 
+namespace sb {
 // describes a graphical 3D axis
 struct Axes : public Object {
   Axes(glm::vec3 t_center) : Object(t_center) {
@@ -110,3 +113,4 @@ struct Axes : public Object {
   unsigned vbo;
   unsigned vao;
 };
+}  // namespace sb

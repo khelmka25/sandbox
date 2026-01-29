@@ -10,6 +10,7 @@
 
 #include "Application/Event.h"
 
+namespace sb {
 namespace gfx {
 GLFWwindow* createGLFWwindow(std::string_view title, unsigned width, unsigned height) noexcept(false) {
   // Setup openGL
@@ -86,3 +87,4 @@ inline void destroyGLFWwindow(GLFWwindow* window) {
 }
 
 }  // namespace gfx
+}  // namespace sb

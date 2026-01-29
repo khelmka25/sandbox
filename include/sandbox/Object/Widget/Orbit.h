@@ -2,11 +2,14 @@
 
 #include <glad/glad.h>
 
-#include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 #include "Object/Object.h"
 
+namespace sb {
 struct Orbit : public Object {
   Orbit() : Object(glm::vec3(0)) {
     // just a point at the origin
@@ -36,3 +39,4 @@ struct Orbit : public Object {
 
   unsigned vao, vbo;
 };
+}  // namespace sb

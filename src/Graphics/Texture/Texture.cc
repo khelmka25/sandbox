@@ -8,6 +8,7 @@
 
 #include <iostream>
 
+namespace sb {
 namespace gfx {
 namespace detail {
 unsigned createTexture(std::filesystem::path path, bool hdr) {
@@ -80,3 +81,4 @@ unsigned createPngTexture(std::filesystem::path path) {
   return detail::createTexture(path, true);
 }
 };  // namespace gfx
+}  // namespace sb

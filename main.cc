@@ -15,6 +15,8 @@
 
 using namespace std::string_view_literals;
 
+using namespace sb;
+
 int main(int argc, char** argv) {
   // Create the window
   const auto title = "OpenGL Window"sv;

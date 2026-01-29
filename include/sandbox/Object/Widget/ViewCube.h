@@ -1,7 +1,5 @@
 #pragma once
 
-struct ViewCube {
-  
-
-
-};
+namespace sb {
+struct ViewCube {};
+}  // namespace sb

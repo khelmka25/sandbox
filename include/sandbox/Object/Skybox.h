@@ -7,6 +7,7 @@
 
 #include "Graphics/Shader.h"
 
+namespace sb {
 extern float skyboxVertices[108];
 
 class Skybox {
@@ -17,8 +18,9 @@ class Skybox {
   void draw(class Shader* shader);
 
   unsigned cubemap;
-  
+
  protected:
   unsigned vertexArrayHandle;
   unsigned vertexBufferHandle;
 };
+}  // namespace sb
