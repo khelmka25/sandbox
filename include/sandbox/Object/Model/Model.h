@@ -3,16 +3,18 @@
 #include <filesystem>
 #include <vector>
 
+#include "Object/Model/Mesh.h"
+
 namespace sb {
 // a model can have one or more associated meshes
 class Model : public Object {
  public:
   // constructor, expects a filepath to a 3D model.
-  Model(std::filesystem::path path) noexcept(true);
+  explicit Model(std::filesystem::path path) noexcept(true);
 
   ~Model() noexcept(true) = default;
 
-  void draw(class Shader* shader) noexcept(true);
+  virtual void draw(class Shader* shader) override; 
 
  protected:
   // model data

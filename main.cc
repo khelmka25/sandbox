@@ -1,5 +1,7 @@
 #include <argh.h>
 
+#include <utility>
+
 #include "Application/Window.h"
 #include "Camera/Camera.h"
 #include "Graphics/Texture/Texture.h"
@@ -86,6 +88,8 @@ int main(int argc, char** argv) {
   Shader backgroundShader("assets/shaders/background.vs", "assets/shaders/background.fs");
   CubePrimitive background(glm::vec3(0, 0, 0), glm::vec4(1.f, 1.f, 1.f, 1));
 
+  Shader outlineShader("assets/shaders/pbr.vs", "assets/shaders/outline.fs");
+
   // Shaders: pbr + ibl shader
   Shader pbrShader("assets/shaders/pbr.vs", "assets/shaders/pbr.fs");
   std::vector<std::unique_ptr<Object>> objects;
@@ -99,17 +103,23 @@ int main(int argc, char** argv) {
   objects.push_back(std::make_unique<CubePrimitive>(glm::vec3(0, 0, +3), glm::vec4(0, 0.5f, 1.f, 1)));
   objects.push_back(std::make_unique<CubePrimitive>(glm::vec3(0, 0, -3), glm::vec4(0.5f, 0, 1, 1)));
 
-  // models...
-  // objects.push_back(std::make_unique<Model>("assets/objects/..."));
-
   glPointSize(4.f);
   glLineWidth(2.f);
+
   glEnable(GL_MULTISAMPLE);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LESS);
+  glEnable(GL_STENCIL_TEST);
+  glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+  // void glStencilOp( 	GLenum sfail,
+  // 	GLenum dpfail,
+  // 	GLenum dppass);
+  glStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
 
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
     glClearColor(1.f, 1.f, 1.f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // draw models inside the scence
     pbrShader.use();
@@ -146,16 +156,31 @@ int main(int argc, char** argv) {
     pbrShader.setFloat("ao", 0.6f);
 
     // draw all objects:
-    for (auto& object : objects) {
-      object->draw(&pbrShader);
+    int selected = 0;
+    // draw all the objects in the world
+    glStencilMask(0x00);
+    for (int i = 0; i < objects.size(); i++) {
+      auto& object = objects.at(i);
+      if (std::cmp_equal(i, selected)) {
+        // enable writing into stencil buffer
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        glStencilMask(0xff);
+        // draw the object as normal
+        object->draw(&pbrShader);
+        // disable writing
+        glStencilMask(0x00);
+      } else {
+        object->draw(&pbrShader);
+      }
     }
+
 
     /* Draw the orbit position of the camera */
     glDepthFunc(GL_ALWAYS);
 
     widgetShader.use();
     glm::mat4 axesModel(1);
-    axesModel = glm::translate(axesModel, glm::vec3(-5.1, 0, -5.1));
+    axesModel = glm::translate(axesModel, objects[selected]->position());
     widgetShader.setMat4("model", axesModel);
     widgetShader.setMat4("view", camera.view());
     widgetShader.setMat4("projection", projection);
@@ -189,6 +214,24 @@ int main(int argc, char** argv) {
     background.draw(&backgroundShader);
     // set depth function back to default
     glDepthFunc(GL_LESS);
+
+    /* draw the selected object outline using the stencil */
+    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+    glStencilMask(0x00);
+    glDisable(GL_DEPTH_TEST);
+
+    // draw an outline first
+    glLineWidth(2);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    outlineShader.use();
+    outlineShader.setMat4("view", view);
+    outlineShader.setMat4("projection", projection);
+    objects[selected]->draw(&outlineShader);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    glStencilMask(0xFF);
+    glStencilFunc(GL_ALWAYS, 1, 0xff);
+    glEnable(GL_DEPTH_TEST);
 
     /* Flush results to screen and poll events */
     glfwSwapBuffers(window);

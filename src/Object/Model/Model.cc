@@ -36,7 +36,9 @@ Model::Model(std::filesystem::path path) noexcept(true) : Object(glm::vec3(0)) {
   }
 }
 
-void Model::draw(Shader* shader) noexcept(true) {
+void Model::draw(Shader* shader) {
+  shader->setMat4("model", modelMatrix);
+  shader->setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(modelMatrix))));
   for (const auto& mesh : meshes) {
     mesh->draw(shader);
   }

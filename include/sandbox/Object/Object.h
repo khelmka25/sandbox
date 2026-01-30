@@ -14,6 +14,12 @@ class Object {
     modelMatrix = glm::translate(modelMatrix, center);
   }
 
+  virtual ~Object() noexcept = default;
+
+  auto position() {
+    return center;
+  }
+
   // void moveTo(glm::vec3 t_position) {
   //   position = t_position;
   // }
