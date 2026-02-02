@@ -13,6 +13,7 @@ target_include_directories(sandboxlib
   ${CMAKE_SOURCE_DIR}/deps/stb/
   ${CMAKE_SOURCE_DIR}/deps/argh/
   ${CMAKE_SOURCE_DIR}/deps/assimp/include
+  ${CMAKE_SOURCE_DIR}/deps/freetype/include
 )
 
 target_compile_options(sandboxlib PUBLIC -g)

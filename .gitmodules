@@ -19,3 +19,6 @@
 [submodule "deps/argh"]
 	path = deps/argh
 	url = https://github.com/adishavit/argh.git
+[submodule "deps/freetype"]
+	path = deps/freetype
+	url = https://gitlab.freedesktop.org/freetype/freetype.git

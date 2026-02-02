@@ -27,6 +27,9 @@ target_include_directories(argh INTERFACE
   ${CMAKE_SOURCE_DIR}/deps/argh
 )
 
+# freetype
+add_subdirectory(${CMAKE_SOURCE_DIR}/deps/freetype)
+
 # assimp
 add_subdirectory(${CMAKE_SOURCE_DIR}/deps/assimp)
 
@@ -36,6 +39,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
 add_executable(${PROJECT_NAME} main.cc)
 target_link_libraries(${PROJECT_NAME} PUBLIC
   sandboxlib
+  freetype
   assimp
   glfw
   glad

@@ -15,6 +15,8 @@
 #include "Preprocessor/Irradiance.h"
 #include "Preprocessor/Prefilter.h"
 
+#include "Graphics/Text/Atlas.h"
+
 using namespace std::string_view_literals;
 
 using namespace sb;
@@ -75,6 +77,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  Atlas atlas("assets/fonts/Monaspace Neon Var.ttf");
+
   // Create the camera
   Camera camera("cam"sv, {0, 0, 0}, {0, 1, 0}, {1, 0, 0}, 3.f, 0.1f, 0.f, 0.f);
 
@@ -106,6 +110,10 @@ int main(int argc, char** argv) {
   glPointSize(4.f);
   glLineWidth(2.f);
 
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+
+
   glEnable(GL_MULTISAMPLE);
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
@@ -115,6 +123,36 @@ int main(int argc, char** argv) {
   // 	GLenum dpfail,
   // 	GLenum dppass);
   glStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
+
+  // create a quad for use here
+  unsigned quadVAO, quadVBO;
+  glGenVertexArrays(1, &quadVAO);
+  glBindVertexArray(quadVAO);
+  // buffer vertices + uvs
+  glGenBuffers(1, &quadVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+  float quadVertices[] = {
+    // positions   // texCoords
+    -1.0f,  1.0f,  0.0f, 1.0f,
+    -1.0f, -1.0f,  0.0f, 0.0f,
+     1.0f, -1.0f,  1.0f, 0.0f,
+
+    -1.0f,  1.0f,  0.0f, 1.0f,
+     1.0f, -1.0f,  1.0f, 0.0f,
+     1.0f,  1.0f,  1.0f, 1.0f
+  };
+  
+  glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+  // vertex attributes
+  const unsigned stride = sizeof(glm::vec2) + sizeof(glm::vec2);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, (void*)0);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)sizeof(glm::vec2));
+
+  glBindVertexArray(0);
+
+  Shader textShader("assets/shaders/text.vs", "assets/shaders/text.fs");
 
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
@@ -190,6 +228,18 @@ int main(int argc, char** argv) {
     widgetShader.use();
     widgetShader.setMat4("model", glm::mat4(1));
     gridObject->draw(&widgetShader);
+
+
+    textShader.use();
+    textShader.setInt("atlas", atlas.texture);
+    textShader.setMat4("projection", projection);
+    textShader.setMat4("view", view);
+    glm::mat4 txtModel(1);
+    txtModel = glm::scale(txtModel, glm::vec3(20, 1, 1));
+    textShader.setMat4("model", txtModel);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
 
     glDepthFunc(GL_ALWAYS);
 
