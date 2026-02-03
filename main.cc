@@ -2,8 +2,11 @@
 
 #include <utility>
 
+#include "Data.h"
 #include "Application/Window.h"
 #include "Camera/Camera.h"
+#include "Graphics/Text/Atlas.h"
+#include "Graphics/Text/Text.h"
 #include "Graphics/Texture/Texture.h"
 #include "Object/CubePrimitive.h"
 #include "Object/Model/Model.h"
@@ -15,8 +18,6 @@
 #include "Preprocessor/Irradiance.h"
 #include "Preprocessor/Prefilter.h"
 
-#include "Graphics/Text/Atlas.h"
-
 using namespace std::string_view_literals;
 
 using namespace sb;
@@ -24,9 +25,9 @@ using namespace sb;
 int main(int argc, char** argv) {
   // Create the window
   const auto title = "OpenGL Window"sv;
-  const auto displayWidth = 640u;
-  const auto displayHeight = 360u;
-  GLFWwindow* window = gfx::createGLFWwindow(title, displayWidth, displayHeight);
+  data::displayWidth = 640.f;
+  data::displayHeight = 360.f;
+  GLFWwindow* window = gfx::createGLFWwindow(title, data::displayWidth, data::displayHeight);
 
   // PBL + IBL
   unsigned envCubemap, irradianceMap, prefilterMap, brdfLUT;
@@ -63,7 +64,7 @@ int main(int argc, char** argv) {
     glEnable(GL_DEPTH_TEST);
 
     // reset the viewport to the desired resolution
-    glViewport(0, 0, displayWidth, displayHeight);
+    glViewport(0, 0, data::displayWidth, data::displayHeight);
   } else if (cmdl[{"-c", "--cache"}]) {
     std::cout << "Using previously generated maps" << std::endl;
     envCubemap = gfx::createHdrCubemap("assets/textures/input/");
@@ -76,8 +77,6 @@ int main(int argc, char** argv) {
     std::cout << argv[0] << "--cache" << std::endl;
     return -1;
   }
-
-  Atlas atlas("assets/fonts/Monaspace Neon Var.ttf");
 
   // Create the camera
   Camera camera("cam"sv, {0, 0, 0}, {0, 1, 0}, {1, 0, 0}, 3.f, 0.1f, 0.f, 0.f);
@@ -111,8 +110,7 @@ int main(int argc, char** argv) {
   glLineWidth(2.f);
 
   glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
-
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   glEnable(GL_MULTISAMPLE);
   glEnable(GL_DEPTH_TEST);
@@ -131,17 +129,11 @@ int main(int argc, char** argv) {
   // buffer vertices + uvs
   glGenBuffers(1, &quadVBO);
   glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-  float quadVertices[] = {
-    // positions   // texCoords
-    -1.0f,  1.0f,  0.0f, 1.0f,
-    -1.0f, -1.0f,  0.0f, 0.0f,
-     1.0f, -1.0f,  1.0f, 0.0f,
+  float quadVertices[] = {// positions   // texCoords
+                          -1.0f, 1.0f, 0.0f, 1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, 0.0f,
 
-    -1.0f,  1.0f,  0.0f, 1.0f,
-     1.0f, -1.0f,  1.0f, 0.0f,
-     1.0f,  1.0f,  1.0f, 1.0f
-  };
-  
+                          -1.0f, 1.0f, 0.0f, 1.0f, 1.0f,  -1.0f, 1.0f, 0.0f, 1.0f, 1.0f,  1.0f, 1.0f};
+
   glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
   // vertex attributes
   const unsigned stride = sizeof(glm::vec2) + sizeof(glm::vec2);
@@ -152,11 +144,15 @@ int main(int argc, char** argv) {
 
   glBindVertexArray(0);
 
+  // text prototype
+  // Atlas atlas("assets/fonts/Monaspace Neon Var.ttf");
+  Atlas atlas("assets/fonts/OpenSans-Regular.ttf");
   Shader textShader("assets/shaders/text.vs", "assets/shaders/text.fs");
+  auto [txtVAO, txtVBO] = gfx::createText("Example Text", 0, 0, atlas);
 
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
-    glClearColor(1.f, 1.f, 1.f, 1.0f);
+    glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // draw models inside the scence
@@ -182,7 +178,7 @@ int main(int argc, char** argv) {
     // Model, View, Projection
     const auto& view = camera.view();
     // use orthographic projection?
-    auto projection = glm::perspective(glm::radians(70.f), 16.f / 9.f, 0.1f, 100.0f);
+    auto projection = glm::perspective(glm::radians(70.f), data::displayWidth / data::displayHeight, 0.1f, 100.0f);
     // auto projection = glm::ortho(-camera.radius, camera.radius, -camera.radius, camera.radius, 0.f, 100.f);
 
     pbrShader.setMat4("view", view);
@@ -212,7 +208,6 @@ int main(int argc, char** argv) {
       }
     }
 
-
     /* Draw the orbit position of the camera */
     glDepthFunc(GL_ALWAYS);
 
@@ -228,18 +223,6 @@ int main(int argc, char** argv) {
     widgetShader.use();
     widgetShader.setMat4("model", glm::mat4(1));
     gridObject->draw(&widgetShader);
-
-
-    textShader.use();
-    textShader.setInt("atlas", atlas.texture);
-    textShader.setMat4("projection", projection);
-    textShader.setMat4("view", view);
-    glm::mat4 txtModel(1);
-    txtModel = glm::scale(txtModel, glm::vec3(20, 1, 1));
-    textShader.setMat4("model", txtModel);
-    glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindVertexArray(0);
 
     glDepthFunc(GL_ALWAYS);
 
@@ -264,6 +247,18 @@ int main(int argc, char** argv) {
     background.draw(&backgroundShader);
     // set depth function back to default
     glDepthFunc(GL_LESS);
+
+    textShader.use();
+    textShader.setInt("atlas", atlas.texture);
+    glm::mat4 projection2 = glm::ortho(-(data::displayWidth)/2.f, (data::displayWidth)/2.f, -(data::displayHeight)/2.f, (data::displayHeight)/2.f);
+    textShader.setMat4("projection", projection2);
+    textShader.setMat4("view", view);
+    glm::mat4 txtModel(1);
+    txtModel = glm::scale(txtModel, glm::vec3(1.f / 96.f, 1.f / 96.f, 1));
+    textShader.setMat4("model", txtModel);
+    glBindVertexArray(txtVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6 * std::strlen("Example Text"));
+    glBindVertexArray(0);
 
     /* draw the selected object outline using the stencil */
     glStencilFunc(GL_NOTEQUAL, 1, 0xFF);

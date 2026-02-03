@@ -11,13 +11,11 @@
 
 struct CharacterMetric {
   // unit coordinates
-  struct UvRect {
-    glm::vec2 uv0;
-    glm::vec2 uv1;
-  } uv;
+  glm::vec2 uv_tr;
+  glm::vec2 uv_bl;
 
   // save the following:
-  float advance_x;
+  float advanceX;
 
   // width of the glyph in pixels
   float width;
@@ -41,14 +39,14 @@ struct Atlas {
       return;
     }
 
-    FT_Set_Pixel_Sizes(face, 0, 48);
+    FT_Set_Pixel_Sizes(face, 0, 32);
 
     // generate an empty texture to be filled
 
     // 1. get the dimensions of all the characters
     unsigned rows = 0;
     unsigned width = 0;
-    for (int c = 32; c < 127; c++) {
+    for (int c = 32; c < 128; c++) {
       if (FT_Err_Ok != FT_Load_Char(face, c, FT_LOAD_BITMAP_METRICS_ONLY)) {
         std::cout << "ERROR::FREETYPE: Failed to load Glyph" << std::endl;
         continue;
@@ -60,8 +58,8 @@ struct Atlas {
       std::cout << c << ": " << face->glyph->bitmap.width << 'x' << face->glyph->bitmap.rows << std::endl;
     }
 
-    std::cout << "rows: " << rows << std::endl;
-    std::cout << "width: " << width << std::endl;
+    // std::cout << "rows: " << rows << std::endl;
+    // std::cout << "width: " << width << std::endl;
 
     // 2. create an empty GL texture with the width and rows
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -79,7 +77,7 @@ struct Atlas {
     // 3. load the bitmap image data and buffer into the GL texture
     unsigned xoffset = 0;
     unsigned yoffset = 0;
-    for (int c = 32; c < 127; c++) {
+    for (int c = 32; c < 128; c++) {
       if (FT_Err_Ok != FT_Load_Char(face, c, FT_LOAD_RENDER)) {
         std::cout << "ERROR::FREETYPE: Failed to load Glyph" << std::endl;
         continue;
@@ -88,7 +86,23 @@ struct Atlas {
       // yoffset = face->glyph->metrics.width;
       glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, face->glyph->bitmap.width, face->glyph->bitmap.rows, GL_RED,
                       GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
+      
+      // update the character metric
+      CharacterMetric& metric = metrics.at(c);
+      // textures uvs for sampler2D
+      metric.uv_tr.x = float(xoffset) / float(width);
+      metric.uv_bl.x = float(xoffset + face->glyph->bitmap.width) / float(width);
+      metric.uv_tr.y = float(yoffset) / float(rows);
+      metric.uv_bl.y = float(yoffset + face->glyph->bitmap.rows) / float(rows);
+      // advance and bearings
+      metric.advanceX = face->glyph->bitmap.width + 2 * face->glyph->bitmap_left;
+      metric.bearingX = face->glyph->bitmap_left;
+      metric.bearingY = face->glyph->bitmap_top;
+      // width, height in pixels
+      metric.width = face->glyph->bitmap.width;
+      metric.height = face->glyph->bitmap.rows;
 
+      // update the cursor
       xoffset = xoffset + face->glyph->bitmap.width;
     }
 
@@ -98,4 +112,6 @@ struct Atlas {
 
   // texture object
   unsigned texture;
+
+  std::array<CharacterMetric, 128> metrics;
 };
