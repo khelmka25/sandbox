@@ -17,20 +17,26 @@ void Camera::handleKeyboardEvent(const KeyboardEvent& e) {
     }
   }
 
-  if (e.key == GLFW_KEY_UP) {
-    rotateVertical(+0.5f);
-  }
-
-  if (e.key == GLFW_KEY_DOWN) {
-    rotateVertical(-0.5f);
-  }
-
-  if (e.key == GLFW_KEY_LEFT) {
-    rotateHorizontal(+0.5f);
-  }
-
-  if (e.key == GLFW_KEY_RIGHT) {
-    rotateHorizontal(-0.5f);
+  if (e.action == GLFW_PRESS || e.action == GLFW_REPEAT) {
+    if (e.key == GLFW_KEY_UP) {
+      rotateVertical(+1.f);
+      recomputeInternals();
+    }
+  
+    if (e.key == GLFW_KEY_DOWN) {
+      rotateVertical(-1.f);
+      recomputeInternals();
+    }
+  
+    if (e.key == GLFW_KEY_LEFT) {
+      rotateHorizontal(+1.f);
+      recomputeInternals();
+    }
+  
+    if (e.key == GLFW_KEY_RIGHT) {
+      rotateHorizontal(-1.f);
+      recomputeInternals();
+    }
   }
 }
 

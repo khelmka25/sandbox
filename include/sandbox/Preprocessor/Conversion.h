@@ -81,7 +81,7 @@ inline unsigned convertEnvironmentMap(std::filesystem::path filepath) {
 
   // pbr: convert HDR equirectangular environment map to cubemap equivalent
   // ----------------------------------------------------------------------
-  Shader conversionShader("assets/shaders/cubemap.vs", "assets/shaders/conversion.fs");
+  Shader conversionShader("conversion", "assets/shaders/cubemap.vs", "assets/shaders/conversion.fs");
   conversionShader.use();
   conversionShader.setInt("equirectangularMap", 0);
   conversionShader.setMat4("projection", captureProjection);

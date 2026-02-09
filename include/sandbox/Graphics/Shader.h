@@ -11,7 +11,7 @@ namespace sb {
 class Shader {
  public:
   // load from file
-  Shader(std::filesystem::path vertexPath, std::filesystem::path fragmentPath);
+  Shader(std::string_view t_name, std::filesystem::path vertexPath, std::filesystem::path fragmentPath);
   ~Shader();
 
   unsigned int handle(void);
@@ -41,5 +41,7 @@ class Shader {
   unsigned int programHandle, vertexShaderHandle, fragmentShaderHandle;
   // map uniform names to their locations
   std::unordered_map<std::string_view, int> uniformLocations;
+
+  std::string_view name;
 };
 }  // namespace sb

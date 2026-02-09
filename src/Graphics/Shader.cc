@@ -12,7 +12,7 @@
 using namespace std::literals::string_view_literals;
 
 namespace sb {
-Shader::Shader(std::filesystem::path vertexPath, std::filesystem::path fragmentPath) {
+Shader::Shader(std::string_view t_name, std::filesystem::path vertexPath, std::filesystem::path fragmentPath) : name(t_name) {
   /*Vertex Shader*/
 
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glCreateShader.xhtml
@@ -115,17 +115,17 @@ GLuint Shader::handle(void) {
   return programHandle;
 }
 
-int Shader::findUniformLocation(std::string_view name) {
+int Shader::findUniformLocation(std::string_view uname) {
   // try to find the uniform in the map
-  if (uniformLocations.find(name) != uniformLocations.end()) {
-    const auto location = uniformLocations.at(name);
+  if (uniformLocations.find(uname) != uniformLocations.end()) {
+    const auto location = uniformLocations.at(uname);
     return location;
   }
-  auto const location = glGetUniformLocation(this->programHandle, name.data());
+  auto const location = glGetUniformLocation(this->programHandle, uname.data());
   if (location < 0) {
-    std::cout << "invalid uniform name: " << name << std::endl;
+    std::cout << name << ": invalid uniform name: " << uname << std::endl;
   }
-  uniformLocations.insert({name, location});
+  uniformLocations.insert({uname, location});
   return location;
 }
 

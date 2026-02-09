@@ -9,109 +9,117 @@
 #include <iostream>
 #include <unordered_map>
 
+namespace sb {
 struct CharacterMetric {
   // unit coordinates
   glm::vec2 uv_tr;
   glm::vec2 uv_bl;
 
   // save the following:
-  float advanceX;
+  float horiAdvance;
+  float vertAdvance;
+
+  float horiBearing;
+  float vertBearing;
 
   // width of the glyph in pixels
   float width;
   float height;
-
-  float bearingY;
-  float bearingX;
 };
 
 struct Atlas {
-  Atlas(std::filesystem::path filepath) {
-    FT_Library ft;
-    if (FT_Init_FreeType(&ft)) {
-      std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
-      return;
-    }
-
-    FT_Face face;
-    if (FT_New_Face(ft, filepath.c_str(), 0, &face)) {
-      std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
-      return;
-    }
-
-    FT_Set_Pixel_Sizes(face, 0, 32);
-
-    // generate an empty texture to be filled
-
-    // 1. get the dimensions of all the characters
-    unsigned rows = 0;
-    unsigned width = 0;
-    for (int c = 32; c < 128; c++) {
-      if (FT_Err_Ok != FT_Load_Char(face, c, FT_LOAD_BITMAP_METRICS_ONLY)) {
-        std::cout << "ERROR::FREETYPE: Failed to load Glyph" << std::endl;
-        continue;
-      }
-
-      rows = std::max(rows, face->glyph->bitmap.rows);
-      width = width + face->glyph->bitmap.width;
-      // create an entry for the character:
-      std::cout << c << ": " << face->glyph->bitmap.width << 'x' << face->glyph->bitmap.rows << std::endl;
-    }
-
-    // std::cout << "rows: " << rows << std::endl;
-    // std::cout << "width: " << width << std::endl;
-
-    // 2. create an empty GL texture with the width and rows
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, rows, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
-    // set texture options
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    // 3. load the bitmap image data and buffer into the GL texture
-    unsigned xoffset = 0;
-    unsigned yoffset = 0;
-    for (int c = 32; c < 128; c++) {
-      if (FT_Err_Ok != FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-        std::cout << "ERROR::FREETYPE: Failed to load Glyph" << std::endl;
-        continue;
-      }
-
-      // yoffset = face->glyph->metrics.width;
-      glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, face->glyph->bitmap.width, face->glyph->bitmap.rows, GL_RED,
-                      GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
-      
-      // update the character metric
-      CharacterMetric& metric = metrics.at(c);
-      // textures uvs for sampler2D
-      metric.uv_tr.x = float(xoffset) / float(width);
-      metric.uv_bl.x = float(xoffset + face->glyph->bitmap.width) / float(width);
-      metric.uv_tr.y = float(yoffset) / float(rows);
-      metric.uv_bl.y = float(yoffset + face->glyph->bitmap.rows) / float(rows);
-      // advance and bearings
-      metric.advanceX = face->glyph->bitmap.width + 2 * face->glyph->bitmap_left;
-      metric.bearingX = face->glyph->bitmap_left;
-      metric.bearingY = face->glyph->bitmap_top;
-      // width, height in pixels
-      metric.width = face->glyph->bitmap.width;
-      metric.height = face->glyph->bitmap.rows;
-
-      // update the cursor
-      xoffset = xoffset + face->glyph->bitmap.width;
-    }
-
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
-  }
-
-  // texture object
   unsigned texture;
-
   std::array<CharacterMetric, 128> metrics;
 };
+
+void createAtlas(std::filesystem::path filepath, unsigned fontSize, Atlas* atlas) noexcept(false) {
+  FT_Library ft;
+  if (FT_Init_FreeType(&ft)) {
+    throw std::runtime_error("failed to initialize FreeType library");
+  }
+
+  FT_Face face;
+  if (FT_New_Face(ft, filepath.c_str(), 0, &face)) {
+    throw std::runtime_error("failed to load font");
+  }
+
+  // use the font height as the size
+  FT_Set_Pixel_Sizes(face, 0, fontSize);
+
+  // 1. get the dimensions of all the characters
+  unsigned textureWidth = 0;
+  unsigned textureHeight = 0;
+  for (int c = 32; c < 127; c++) {
+    if (FT_Err_Ok != FT_Load_Char(face, c, FT_LOAD_BITMAP_METRICS_ONLY)) {
+      std::cout << "ERROR::FREETYPE: Failed to load Glyph" << std::endl;
+      continue;
+    }
+
+    auto& metric = face->glyph->metrics;
+
+    // face->glyph->metrics is in fixed point 26.6
+    // shift by 6 to get the integer part: in pixels
+    unsigned const glyphWidth = metric.width >> 6;
+    unsigned const glyphHeight = metric.height >> 6;
+
+    // update the max width and height for the final texture
+    textureWidth = textureWidth + glyphWidth;
+    textureHeight = std::max(textureHeight, glyphHeight);
+  }
+
+  // 2. create an empty GL texture with the width and rows
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glGenTextures(1, &atlas->texture);
+  glBindTexture(GL_TEXTURE_2D, atlas->texture);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, textureWidth, textureHeight, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+  // set texture options
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  // 3. load the bitmap image data and buffer into the GL texture
+  unsigned xoffset = 0;
+  unsigned yoffset = 0;
+  for (int c = 32; c < 127; c++) {
+    if (FT_Err_Ok != FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+      std::cout << "ERROR::FREETYPE: Failed to load Glyph" << std::endl;
+      continue;
+    }
+
+    // face->glyph->metrics is in fixed point 26.6
+    // shift by 6 to get the integer part
+    unsigned const glyphWidth = face->glyph->metrics.width >> 6;
+    unsigned const glyphHeight = face->glyph->metrics.height >> 6;
+    unsigned const glyphHoriAdvance = face->glyph->metrics.horiAdvance >> 6;
+    unsigned const glyphVertAdvance = face->glyph->metrics.vertAdvance >> 6;
+    unsigned const glyphBearingX = face->glyph->metrics.horiBearingX >> 6;
+    unsigned const glyphBearingY = face->glyph->metrics.horiBearingY >> 6;
+
+    // update the character metric
+    auto& metric = atlas->metrics.at(c);
+    // textures uvs for sampler2D
+    metric.uv_tr.x = float(xoffset) / float(textureWidth);
+    metric.uv_bl.x = float(xoffset + glyphWidth) / float(textureWidth);
+    metric.uv_tr.y = float(yoffset) / float(textureHeight);
+    metric.uv_bl.y = float(yoffset + glyphHeight) / float(textureHeight);
+    // advance and bearings
+    metric.horiAdvance = glyphHoriAdvance;
+    metric.horiBearing = glyphBearingX;
+    metric.vertBearing = glyphBearingY;
+    // width, height in pixels
+    metric.width = glyphWidth;
+    metric.height = glyphHeight;
+
+    glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, face->glyph->bitmap.width, face->glyph->bitmap.rows, GL_RED,
+                    GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
+
+    // update the cursor
+    xoffset = xoffset + glyphWidth;
+  }
+
+  FT_Done_Face(face);
+  FT_Done_FreeType(ft);
+}
+}

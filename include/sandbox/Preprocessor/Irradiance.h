@@ -50,7 +50,7 @@ inline unsigned createIrradianceMap(unsigned envCubemap, int size) {
   // pbr: solve diffuse integral by convolution to create an irradiance (cube)map.
   // -----------------------------------------------------------------------------
   glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-  Shader irradianceShader("assets/shaders/cubemap.vs", "assets/shaders/irradiance.fs");
+  Shader irradianceShader("irradiance", "assets/shaders/cubemap.vs", "assets/shaders/irradiance.fs");
   irradianceShader.use();
   irradianceShader.setInt("environmentMap", 0);
   irradianceShader.setMat4("projection", captureProjection);

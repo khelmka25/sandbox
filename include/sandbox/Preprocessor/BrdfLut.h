@@ -30,7 +30,7 @@ inline unsigned createBrdfLutTexture(int size) {
 
   // pbr: generate a 2D LUT from the BRDF equations used.
   // ----------------------------------------------------
-  Shader brdfShader("assets/shaders/brdf.vs", "assets/shaders/brdf.fs");
+  Shader brdfShader("brdf", "assets/shaders/brdf.vs", "assets/shaders/brdf.fs");
   unsigned int brdfLUTTexture;
   glGenTextures(1, &brdfLUTTexture);
 

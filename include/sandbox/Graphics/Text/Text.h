@@ -10,12 +10,14 @@
 #include "Graphics/Text/Atlas.h"
 
 namespace sb {
-namespace gfx {
-// vbo, vao
-inline std::tuple<unsigned, unsigned> createText(const char* str, float xpos, float ypos, const Atlas& atlas) {
-  unsigned vbo;
+struct Text {
   unsigned vao;
+  unsigned vbo;
 
+  unsigned triCount;
+};
+
+void createText(const char* str, float xpos, float ypos, const Atlas* atlas, Text* text) {
   // generate the vertex data:
   std::vector<glm::vec2> pos;
   std::vector<glm::vec2> uv;
@@ -25,7 +27,7 @@ inline std::tuple<unsigned, unsigned> createText(const char* str, float xpos, fl
   while (*ptr != 0) {
     int c = *ptr;
     // add the character to the vertex array
-    auto metric = atlas.metrics.at(c);
+    auto metric = atlas->metrics.at(c);
     // clockwise winding order
     // tr---tl
     // |t0/t1|
@@ -38,10 +40,10 @@ inline std::tuple<unsigned, unsigned> createText(const char* str, float xpos, fl
     // O - | /   | -----
     // |   br---bl
     // |
-    const glm::vec2 tr = origin + glm::vec2(metric.bearingX, metric.bearingY);
-    const glm::vec2 tl = origin + glm::vec2(metric.bearingX + metric.width, metric.bearingY);
-    const glm::vec2 br = origin + glm::vec2(metric.bearingX, metric.bearingY - metric.height);
-    const glm::vec2 bl = origin + glm::vec2(metric.bearingX + metric.width, metric.bearingY - metric.height);
+    const glm::vec2 tr = origin + glm::vec2(metric.horiBearing, metric.vertBearing);
+    const glm::vec2 tl = origin + glm::vec2(metric.horiBearing + metric.width, metric.vertBearing);
+    const glm::vec2 br = origin + glm::vec2(metric.horiBearing, metric.vertBearing - metric.height);
+    const glm::vec2 bl = origin + glm::vec2(metric.horiBearing + metric.width, metric.vertBearing - metric.height);
     // triangle 1
     pos.push_back(tr);
     pos.push_back(tl);
@@ -68,16 +70,16 @@ inline std::tuple<unsigned, unsigned> createText(const char* str, float xpos, fl
     uv.push_back(uv_bl);
     uv.push_back(uv_br);
 
-    xpos += metric.advanceX;
+    xpos += metric.horiAdvance;
 
     ptr++;
   }
 
-  glGenVertexArrays(1, &vao);
-  glBindVertexArray(vao);
+  glGenVertexArrays(1, &text->vao);
+  glBindVertexArray(text->vao);
 
-  glGenBuffers(1, &vbo);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glGenBuffers(1, &text->vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, text->vbo);
   glBufferData(GL_ARRAY_BUFFER, pos.size() * sizeof(glm::vec2) + uv.size() * sizeof(glm::vec2), nullptr,
                GL_DYNAMIC_DRAW);
   glBufferSubData(GL_ARRAY_BUFFER, 0, pos.size() * sizeof(glm::vec2), glm::value_ptr(pos.front()));
@@ -90,9 +92,8 @@ inline std::tuple<unsigned, unsigned> createText(const char* str, float xpos, fl
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)(pos.size() * sizeof(glm::vec2)));
 
+  text->triCount = pos.size() / 3;
+
   glBindVertexArray(0);
-  
-  return std::make_tuple(vao, vbo);
 }
-}  // namespace gfx
 }  // namespace sb

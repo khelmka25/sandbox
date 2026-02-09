@@ -51,7 +51,7 @@ inline unsigned createPrefilterMap(unsigned envCubemap, int size, int miplevels)
   // pbr: run a quasi monte-carlo simulation on the environment lighting to create a prefilter (cube)map.
   // ----------------------------------------------------------------------------------------------------
   glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-  Shader prefilterShader("assets/shaders/cubemap.vs", "assets/shaders/prefilter.fs");
+  Shader prefilterShader("prefilter", "assets/shaders/cubemap.vs", "assets/shaders/prefilter.fs");
   prefilterShader.use();
   prefilterShader.setInt("environmentMap", 0);
   prefilterShader.setMat4("projection", captureProjection);
