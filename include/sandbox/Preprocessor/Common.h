@@ -8,7 +8,6 @@
 #include <glm/vec4.hpp>
 
 namespace sb {
-namespace gfx {
 namespace common {
 
 inline const unsigned resolution = 128u;
@@ -113,5 +112,4 @@ inline void destroyFrameBuffers() {
   glDeleteFramebuffers(1, &captureFBO);
 }
 }  // namespace common
-}  // namespace gfx
 }  // namespace sb

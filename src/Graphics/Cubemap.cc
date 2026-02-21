@@ -1,4 +1,4 @@
-#include "Graphics/Cubemap/Cubemap.h"
+#include "Graphics/Cubemap.h"
 
 #include <array>
 #include <format>
@@ -94,6 +94,7 @@ unsigned createCubemapMipped(std::filesystem::path path, bool hdr, int mipLevels
       void* data(nullptr);
 
       if (hdr) {
+        
         data = stbi_loadf(filepath.c_str(), &width, &height, &channels, 0);
       } else {
         data = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
@@ -108,8 +109,7 @@ unsigned createCubemapMipped(std::filesystem::path path, bool hdr, int mipLevels
 
       // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
       // void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint
-      // border,
-      //                   GLenum format, GLenum type, const void* data);
+      // border, GLenum format, GLenum type, const void* data);
       if (hdr) {
         std::cout << "Imported: " << filepath << " - " << width << 'x' << height << 'x' << channels << std::endl;
         glTexImage2D(faceDir, mip, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);

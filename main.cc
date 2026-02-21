@@ -5,20 +5,21 @@
 #include "Application/Window.h"
 #include "Camera/Camera.h"
 #include "Data.h"
+#include "Graphics/Framebuffer.h"
 #include "Graphics/Text/Atlas.h"
-#include "Object/PlanePrimitive.h"
 #include "Graphics/Text/Text.h"
-#include "Graphics/Texture/Texture.h"
-#include "Graphics/Framebuffer/Framebuffer.h"
+#include "Graphics/Texture.h"
 #include "Object/CubePrimitive.h"
 #include "Object/Model/Model.h"
+#include "Object/PlanePrimitive.h"
 #include "Object/Widget/Axes.h"
 #include "Object/Widget/Grid.h"
 #include "Object/Widget/Orbit.h"
 #include "Preprocessor/BrdfLut.h"
-#include "Preprocessor/Conversion.h"
+#include "Preprocessor/Environment.h"
 #include "Preprocessor/Irradiance.h"
 #include "Preprocessor/Prefilter.h"
+#include "Graphics/DrawList.h"
 
 using namespace std::string_view_literals;
 
@@ -30,15 +31,21 @@ int main(int argc, char** argv) {
   GLFWwindow* window = sb::gfx::createGLFWwindow(title, sb::data::displayWidth, sb::data::displayHeight);
 
   // PBL + IBL
-  unsigned envCubemap, irradianceMap, prefilterMap, brdfLUT;
+  unsigned envMap3D, irradianceMap, prefilterMap, brdfLUT;
+  
   // Parse the command line, generate new textures if req
   // "-g/--gen <filename.hdr>" generates a new set of hdr maps
   // "-c/--cache" uses the cached generated textures
-  argh::parser cmdl({"-f", "--file"});
+  argh::parser cmdl({"--file", "-F"});
   cmdl.parse(argc, argv);
-  if (cmdl[{"-g", "--generate"}]) {
+  if (cmdl[{"-G", "--generate"}]) {
     std::string filename;
-    cmdl({"f", "file"}) >> filename;
+    cmdl({"file", "F"}) >> filename;
+    if (filename.empty()) {
+      std::cout << "Please supply a valid filename" << std::endl;
+      return -1;
+    }
+
     std::cout << filename << std::endl;
     // generate new maps
     auto dir = std::filesystem::path("assets/textures/input");
@@ -48,37 +55,55 @@ int main(int argc, char** argv) {
     // begin generation
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
+    
     // convert the given hdr into a cubemap for use
-    envCubemap = sb::gfx::convertEnvironmentMap(filepath);
-    sb::gfx::exportEnvironmentMap(envCubemap, "assets/textures/input/");
+    // unsigned envMap2D = sb::gfx::createHdrTexture(filepath);
+    envMap3D = sb::EnvironmentMap::create(filepath);
+
     // irradiance map: 128x128
-    irradianceMap = sb::gfx::createIrradianceMap(envCubemap, 128);
-    sb::gfx::exportIrradianceCubeMap(irradianceMap, 128, "assets/textures/irradianceMap/");
+    irradianceMap = sb::IrradianceMap::create(envMap3D, 128);
+    
     // prefilter map: 128x128, 5 mips
-    prefilterMap = sb::gfx::createPrefilterMap(envCubemap, 128, 5);
-    sb::gfx::exportPrefilterMap(prefilterMap, 128, 5, "assets/textures/prefilterMap/");
+    prefilterMap = sb::PrefilterMap::create(envMap3D, 128u, 5u);
+
     // BRDF-LUT: 512x512
-    brdfLUT = sb::gfx::createBrdfLutTexture(512);
-    sb::gfx::exportBrdfLutTexture(brdfLUT, 512, "assets/textures/brdfLut/brdfLut.hdr");
+    brdfLUT = sb::BrdfLut::create(512u);
+    
     // end generation
     glEnable(GL_DEPTH_TEST);
+    // glEnable(GL_CULL_FACE);
+    // glCullFace(GL_BACK);
+    // glFrontFace(GL_CW);  
+
+
+    if (cmdl[{"--export", "-E"}]) {
+      sb::EnvironmentMap::saveToFile(envMap3D, "assets/textures/input/");
+      sb::IrradianceMap::saveToDir(irradianceMap, 128u, "assets/textures/irradianceMap/");
+      sb::PrefilterMap::saveToFile(prefilterMap, 128u, 5u, "assets/textures/prefilterMap/");
+      sb::BrdfLut::saveToFile(brdfLUT, 512u, "assets/textures/brdfLut/brdfLut.hdr");
+    }
 
     // reset the viewport to the desired resolution
     glViewport(0, 0, sb::data::displayWidth, sb::data::displayHeight);
-  } else if (cmdl[{"-c", "--cache"}]) {
+  } else if (cmdl[{"--cache", "-C"}]) {
     std::cout << "Using previously generated maps" << std::endl;
-    envCubemap = sb::gfx::createHdrCubemap("assets/textures/input/");
+    envMap3D = sb::gfx::createHdrCubemap("assets/textures/input/");
     irradianceMap = sb::gfx::createHdrCubemap("assets/textures/irradianceMap/");
     prefilterMap = sb::gfx::createHdrCubemapMipped("assets/textures/prefilterMap/", 5);
     brdfLUT = sb::gfx::createHdrTexture("assets/textures/brdfLut/brdfLut.hdr");
   } else {
     std::cout << "Usage:" << std::endl;
-    std::cout << argv[0] << "--gen photo_studio_01_1k.hdr" << std::endl;
-    std::cout << argv[0] << "--cache" << std::endl;
-    return -1;
+    std::cout << argv[0] << " --generate --file photo_studio_01_1k.hdr" << std::endl;
+    std::cout << argv[0] << " --cache" << std::endl;
+    return EXIT_FAILURE;
   }
 
-  auto skyboxCubemap = envCubemap;
+  assert((envMap3D != 0) && "Envionment Map must be initialized");
+  assert((irradianceMap != 0) && "Irradiance Map must be initialized");
+  assert((prefilterMap != 0) && "Prefilter Map must be initialized");
+  assert((brdfLUT != 0) && "BrdfLut must be initialized");
+
+  auto skyboxCubemap = envMap3D;
   // blurred background or the hdr cubmap?
   if (cmdl[{"--no-skybox"}]) {
     skyboxCubemap = irradianceMap;
@@ -96,6 +121,7 @@ int main(int argc, char** argv) {
   glDepthFunc(GL_LESS);
   glEnable(GL_STENCIL_TEST);
   glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+
   // void glStencilOp( 	GLenum sfail,
   // 	GLenum dpfail,
   // 	GLenum dppass);
@@ -105,17 +131,19 @@ int main(int argc, char** argv) {
   sb::Camera camera("cam"sv, {0, 0, 0}, {0, 1, 0}, {1, 0, 0}, 3.f, 0.1f, 0.f, 0.f);
 
   // Shaders
-  sb::Shader widgetShader("widget"sv, "assets/shaders/widget.vs", "assets/shaders/widget.fs");
-  sb::Shader selectionShader("selection"sv, "assets/shaders/selection.vs", "assets/shaders/selection.fs");
+  sb::Shader widgetShader("widget"sv, "assets/shaders/widget/widget.vs", "assets/shaders/widget/widget.fs");
+  sb::Shader selectionShader("selection"sv, "assets/shaders/utility/selection.vs", "assets/shaders/utility/selection.fs");
   sb::Shader backgroundShader("background"sv, "assets/shaders/background.vs", "assets/shaders/background.fs");
-  sb::Shader outlineShader("outline"sv, "assets/shaders/pbr.vs", "assets/shaders/outline.fs");
-  sb::Shader textShader("text"sv, "assets/shaders/text.vs", "assets/shaders/text.fs");
+  sb::Shader outlineShader("outline"sv, "assets/shaders/pbr.vs", "assets/shaders/utility/outline.fs");
+  sb::Shader textShader("text"sv, "assets/shaders/widget/text.vs", "assets/shaders/widget/text.fs");
+  
   // Shaders: pbr + ibl shader
   sb::Shader pbrShader("pbr"sv, "assets/shaders/pbr.vs", "assets/shaders/pbr.fs");
 
   // Text atlas
-  sb::Atlas atlas;
-  sb::createAtlas("assets/fonts/Monaspace Neon Var.ttf", 16, &atlas);
+  sb::Atlas atlasSmall("assets/fonts/Monaspace Neon Var.ttf", 16);
+  sb::Atlas atlasMedium("assets/fonts/Monaspace Neon Var.ttf", 24);
+  sb::Atlas atlasLarge("assets/fonts/Monaspace Neon Var.ttf", 32);
 
   // Widgets
   std::unique_ptr<sb::Object> orbitObject = std::make_unique<sb::Orbit>();
@@ -143,24 +171,32 @@ int main(int argc, char** argv) {
   sb::PlanePrimitive plane;
 
   // text prototype
-  sb::Text text;
-  sb::createText("Example Text", 16, 16, &atlas, &text);
+  sb::Text text0, text1, text2;
+  sb::createText("Small Text", 0, 0, &atlasSmall, &text0);
+  sb::createText("Medium Text", 0, 16, &atlasMedium, &text1);
+  sb::createText("Large Text", 0, 40, &atlasLarge, &text2);
 
   // 0 = no selection, 1 = 0th object selected
   int sceneSelection = 0;
+
+  // sb::DrawList drawlist;
+  // drawlist.addText({0, 0}, "example text here", &atlasSmall, {1.f, 1.f, 1.f, 1.f});
+
+  // drawlist.rebuffer();
 
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
     // Model, View, Projection
     const auto& view = camera.view();
-    auto projection = glm::perspective(glm::radians(70.f), sb::data::displayWidth / sb::data::displayHeight, 0.1f, 100.0f);
+    auto projection =
+        glm::perspective(glm::radians(70.f), sb::data::displayWidth / sb::data::displayHeight, 0.1f, 100.0f);
 
     // bind the selection framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
     // draw the background as 0
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    
+
     glViewport(0, 0, sb::data::displayWidth, sb::data::displayHeight);
 
     // draw each of the objects in a unique color that can be decoded later
@@ -310,17 +346,32 @@ int main(int argc, char** argv) {
     {
       // Draw the text into the scene
       textShader.use();
-      textShader.setInt("atlas", 0);
       glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, atlas.texture);
+      glBindTexture(GL_TEXTURE_2D, atlasSmall.texture);
+      glActiveTexture(GL_TEXTURE1);
+      glBindTexture(GL_TEXTURE_2D, atlasMedium.texture);
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(GL_TEXTURE_2D, atlasLarge.texture);
       glm::mat4 projection2 = glm::ortho(0.f, sb::data::displayWidth, 0.f, sb::data::displayHeight);
       textShader.setMat4("projection", projection2);
-      // textShader.setMat4("view", view);
-      // glm::mat4 txtModel(1);
+      textShader.setMat4("view", view);
+      glm::mat4 txtModel(1);
       // txtModel = glm::scale(txtModel, glm::vec3(1.f / 96.f, 1.f / 96.f, 1));
-      // textShader.setMat4("model", txtModel);
-      glBindVertexArray(text.vao);
-      glDrawArrays(GL_TRIANGLES, 0, 3 * text.triCount);
+      textShader.setMat4("model", txtModel);
+
+      textShader.setInt("atlas", 0);
+      glBindVertexArray(text0.vao);
+      glDrawArrays(GL_TRIANGLES, 0, 3 * text0.triCount);
+      glBindVertexArray(0);
+
+      textShader.setInt("atlas", 1);
+      glBindVertexArray(text1.vao);
+      glDrawArrays(GL_TRIANGLES, 0, 3 * text1.triCount);
+      glBindVertexArray(0);
+
+      textShader.setInt("atlas", 2);
+      glBindVertexArray(text2.vao);
+      glDrawArrays(GL_TRIANGLES, 0, 3 * text2.triCount);
       glBindVertexArray(0);
     }
 
@@ -416,5 +467,5 @@ int main(int argc, char** argv) {
     }
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }

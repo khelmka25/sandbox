@@ -6,8 +6,6 @@
 
 #include "Object/Object.h"
 
-// extern float cubeVertices[216];
-
 namespace sb {
 class CubePrimitive : public Object {
  public:

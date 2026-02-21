@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "Graphics/Shader.h"
-#include "Graphics/Texture/Texture.h"
+#include "Graphics/Texture.h"
 #include "Object/Model/Mesh.h"
 #include "Object/Model/Texture.h"
 #include "Object/Model/Vertex.h"

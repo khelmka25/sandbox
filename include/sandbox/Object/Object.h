@@ -29,6 +29,9 @@ class Object {
   // }
 
   virtual void draw(class Shader* shader) = 0;
+  // virtual void drawOutline(class Shader* shader) = 0;
+  // virtual void drawSolid(class Shader* shader) = 0;
+
 
   // required:
   // translation

@@ -174,6 +174,7 @@ void CubePrimitive::draw(Shader* shader) {
   glBindVertexArray(vao);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
   glDrawElements(GL_TRIANGLES, sizeof(indices), GL_UNSIGNED_INT, nullptr);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
   glBindVertexArray(0);
 }
 }  // namespace sb

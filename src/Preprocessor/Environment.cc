@@ -1,22 +1,68 @@
-#pragma once
+#include "Preprocessor/Environment.h"
+
+#include <glad/glad.h>
 
 #include <glad/glad.h>
 #include <stb_image.h>
-
 #include <filesystem>
+#include <format>
+
+#include <stb_image_write.h>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
-#include "Graphics/Cubemap/Cubemap.h"
+#include "Graphics/Cubemap.h"
 #include "Graphics/Shader.h"
-#include "Graphics/Texture/Texture.h"
+#include "Graphics/Texture.h"
 #include "Preprocessor/Common.h"
 
+#include "Object/Object.h"
+#include "Object/CubePrimitive.h"
+
+#include "Utils.h"
+
 namespace sb {
-namespace gfx {
-// convert an hdr environment map into an hdr cubemap texture
-inline unsigned convertEnvironmentMap(std::filesystem::path filepath) {
+
+// export the texture to disk
+bool EnvironmentMap::saveToFile(unsigned envMap3D, std::filesystem::path dirpath) noexcept(false) {
+  glBindTexture(GL_TEXTURE_CUBE_MAP, envMap3D);
+
+  int size = 512;
+
+  std::vector<float> pixels(size * size * 3);
+
+  std::array<const char*, 6ull> faces = {"px", "nx", "py", "ny", "pz", "nz"};
+
+  for (int i = 0; i < 6; ++i) {
+    glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, GL_FLOAT, pixels.data());
+
+    auto filename = std::format("{}.hdr", faces[i]);
+    auto filepath = dirpath / filename;
+
+    if (!stbi_write_hdr(filepath.c_str(), size, size, 3, pixels.data())) {
+      std::cerr << "Failed to write " << filepath << "\n";
+      return false;
+    } else {
+      std::cout << "Exported: " << filepath << " - " << size << 'x' << size << 'x' << 3 << std::endl;
+    }
+  }
+
+  return true;
+}
+
+// import the texture from disk
+unsigned EnvironmentMap::loadFromFile(std::filesystem::path filepath) noexcept(false) {
+
+  return 0;
+}
+
+void EnvironmentMap::destroy(unsigned envMap3D) noexcept(true) {
+  glDeleteTextures(GL_TEXTURE_CUBE_MAP, &envMap3D);
+}
+
+// convert a 2D hdr texture to a spherical cubemap
+unsigned EnvironmentMap::create(std::filesystem::path filepath) noexcept(false) {
   // pbr: setup framebuffer
   // ----------------------
   unsigned int captureFBO;
@@ -28,6 +74,8 @@ inline unsigned convertEnvironmentMap(std::filesystem::path filepath) {
   glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
+
+  utils::checkError();
 
   // pbr: load the HDR environment map
   // ---------------------------------
@@ -52,14 +100,17 @@ inline unsigned convertEnvironmentMap(std::filesystem::path filepath) {
     std::cout << "Failed to load HDR image." << std::endl;
   }
 
+  utils::checkError();
+
   // pbr: setup cubemap to render to and attach to framebuffer
   // ---------------------------------------------------------
-  unsigned int envCubemap;
-  glGenTextures(1, &envCubemap);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+  unsigned int envCubemap3D;
+  glGenTextures(1, &envCubemap3D);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap3D);
   for (unsigned int i = 0; i < 6; ++i) {
     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 512, 512, 0, GL_RGB, GL_FLOAT, nullptr);
   }
+
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
@@ -69,7 +120,7 @@ inline unsigned convertEnvironmentMap(std::filesystem::path filepath) {
 
   // pbr: set up projection and view matrices for capturing data onto the 6 cubemap face directions
   // ----------------------------------------------------------------------------------------------
-  glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+  glm::mat4 const captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
   glm::mat4 captureViews[] = {
       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
@@ -81,56 +132,41 @@ inline unsigned convertEnvironmentMap(std::filesystem::path filepath) {
 
   // pbr: convert HDR equirectangular environment map to cubemap equivalent
   // ----------------------------------------------------------------------
-  Shader conversionShader("conversion", "assets/shaders/cubemap.vs", "assets/shaders/conversion.fs");
+  Shader conversionShader("environment", "assets/shaders/cubemap.vs", "assets/shaders/preprocessor/conversion.fs");
+  
   conversionShader.use();
   conversionShader.setInt("equirectangularMap", 0);
   conversionShader.setMat4("projection", captureProjection);
+  
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, hdrTexture);
 
   glViewport(0, 0, 512, 512);  // don't forget to configure the viewport to the capture dimensions.
   glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+
+  // std::unique_ptr<Object> cube = std::make_unique<CubePrimitive>(glm::vec3(0.f), glm::vec4(1.f));
+
   common::createCube();
+
   for (unsigned int i = 0; i < 6; ++i) {
     conversionShader.setMat4("view", captureViews[i]);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap3D, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     common::drawCube();
   }
+
   common::destroyCube();
+  
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glDeleteRenderbuffers(1, &captureRBO);
   glDeleteFramebuffers(1, &captureFBO);
 
   // then let OpenGL generate mipmaps from first mip face (combatting visible dots artifact)
-  glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap3D);
   glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
-  return envCubemap;
+  utils::checkError();
+  return envCubemap3D;
 }
-
-inline void exportEnvironmentMap(unsigned cubemap, std::filesystem::path path) {
-  glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
-
-  int size = 512;
-
-  std::vector<float> pixels(size * size * 3);
-
-  std::array<const char*, 6ull> faces = {"px", "nx", "py", "ny", "pz", "nz"};
-
-  for (int i = 0; i < 6; ++i) {
-    glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, GL_FLOAT, pixels.data());
-
-    auto filename = std::format("{}.hdr", faces[i]);
-    auto filepath = path / filename;
-
-    if (!stbi_write_hdr(filepath.c_str(), size, size, 3, pixels.data())) {
-      std::cerr << "Failed to write " << filepath << "\n";
-    } else {
-      std::cout << "Exported: " << filepath << " - " << size << 'x' << size << 'x' << 3 << std::endl;
-    }
-  }
-}
-}  // namespace gfx
 }  // namespace sb

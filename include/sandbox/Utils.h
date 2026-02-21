@@ -2,6 +2,9 @@
 
 #include <type_traits>
 
+#include <glad/glad.h>
+#include <iostream>
+
 namespace utils {
 
 template <typename T>
@@ -19,6 +22,13 @@ template <typename T>
   requires HasUnderlyingType<T>
 inline decltype(auto) to_underlying_ptr(T* t) noexcept {
   return reinterpret_cast<std::add_pointer_t<std::underlying_type_t<T>>>(t);
+}
+
+inline void checkError() {
+  unsigned result;
+  while (result = glGetError(), result != GL_NO_ERROR) {
+    std::cout << "Error: " << result;
+  }
 }
 
 }  // namespace utils

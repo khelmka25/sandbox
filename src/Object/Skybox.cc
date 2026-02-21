@@ -1,6 +1,6 @@
 #include "Object/Skybox.h"
 
-#include "Graphics/Cubemap/Cubemap.h"
+#include "Graphics/Cubemap.h"
 
 namespace sb {
 float skyboxVertices[108] = {

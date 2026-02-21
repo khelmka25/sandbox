@@ -41,7 +41,7 @@ class PlanePrimitive : public Object {
     glBindVertexArray(0);
   }
 
-  virtual void draw(Shader* shader) {
+  virtual void draw(Shader* shader) override {
     shader->setMat4("model", modelMatrix);
     glBindVertexArray(vao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
