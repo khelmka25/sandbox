@@ -10,7 +10,8 @@
                 "${workspaceFolder}/deps/stb/",
                 "${workspaceFolder}/deps/argh/",
                 "${workspaceFolder}/deps/assimp/include/",
-                "${workspaceFolder}/deps/freetype/include/"
+                "${workspaceFolder}/deps/freetype/include/",
+                "${workspaceFolder}/deps/rectpack2D/src/"
             ],
             "defines": [],
             "cStandard": "c17",

@@ -28,7 +28,7 @@ void createText(const char* str, float xpos, float ypos, const Atlas* atlas, Tex
     int c = *ptr;
     // add the character to the vertex array
     auto metric = atlas->metrics.at(c);
-    // clockwise winding order
+    // counterclockwise winding order
     // tr---tl
     // |t0/t1|
     // br---bl
@@ -45,15 +45,15 @@ void createText(const char* str, float xpos, float ypos, const Atlas* atlas, Tex
     const glm::vec2 br = origin + glm::vec2(metric.horiBearing, metric.vertBearing - metric.height);
     const glm::vec2 bl = origin + glm::vec2(metric.horiBearing + metric.width, metric.vertBearing - metric.height);
     // triangle 1
-    pos.push_back(tr);
     pos.push_back(tl);
+    pos.push_back(tr);
     pos.push_back(br);
     // triangle 2
-    pos.push_back(tl);
     pos.push_back(bl);
+    pos.push_back(tl);
     pos.push_back(br);
 
-    // clockwise winding order
+    // counterclockwise winding order
     // tr---tl
     // |t0/t1|
     // br---bl
@@ -62,12 +62,12 @@ void createText(const char* str, float xpos, float ypos, const Atlas* atlas, Tex
     const glm::vec2 uv_br = glm::vec2(metric.uv_tr.x, metric.uv_bl.y);
     const glm::vec2 uv_bl = glm::vec2(metric.uv_bl.x, metric.uv_bl.y);
     // uv 1
-    uv.push_back(uv_tr);
     uv.push_back(uv_tl);
+    uv.push_back(uv_tr);
     uv.push_back(uv_br);
     // uv 2
-    uv.push_back(uv_tl);
     uv.push_back(uv_bl);
+    uv.push_back(uv_tl);
     uv.push_back(uv_br);
 
     xpos += metric.horiAdvance;

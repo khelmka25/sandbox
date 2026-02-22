@@ -55,9 +55,8 @@ int main(int argc, char** argv) {
     // begin generation
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
-    
+  
     // convert the given hdr into a cubemap for use
-    // unsigned envMap2D = sb::gfx::createHdrTexture(filepath);
     envMap3D = sb::EnvironmentMap::create(filepath);
 
     // irradiance map: 128x128
@@ -71,10 +70,8 @@ int main(int argc, char** argv) {
     
     // end generation
     glEnable(GL_DEPTH_TEST);
-    // glEnable(GL_CULL_FACE);
-    // glCullFace(GL_BACK);
-    // glFrontFace(GL_CW);  
-
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 
     if (cmdl[{"--export", "-E"}]) {
       sb::EnvironmentMap::saveToFile(envMap3D, "assets/textures/input/");
@@ -104,6 +101,7 @@ int main(int argc, char** argv) {
   assert((brdfLUT != 0) && "BrdfLut must be initialized");
 
   auto skyboxCubemap = envMap3D;
+  
   // blurred background or the hdr cubmap?
   if (cmdl[{"--no-skybox"}]) {
     skyboxCubemap = irradianceMap;
@@ -246,8 +244,10 @@ int main(int argc, char** argv) {
     pbrShader.setMat4("projection", projection);
 
     // Set the properties of the objects
-    pbrShader.setFloat("metallic", 0.1f);
-    pbrShader.setFloat("roughness", 0.3f);
+    // pbrShader.setFloat("metallic", 0.1f);
+    pbrShader.setFloat("metallic", std::abs(std::sin(glfwGetTime() / 10.f)));
+    // pbrShader.setFloat("roughness", 0.3f);
+    pbrShader.setFloat("roughness", std::abs(std::cos(glfwGetTime() / 10.f)));
     pbrShader.setFloat("ao", 0.6f);
 
     // draw all the objects in the world, writing into stencil if selected
@@ -304,6 +304,7 @@ int main(int argc, char** argv) {
     }
 
     {
+      glCullFace(GL_FRONT);
       /* Draw the background */
       // change depth function so depth test passes when values are equal to depth buffer's content
       glDepthFunc(GL_LEQUAL);
@@ -317,6 +318,8 @@ int main(int argc, char** argv) {
       background.draw(&backgroundShader);
       // set depth function back to default
       glDepthFunc(GL_LESS);
+
+      glCullFace(GL_BACK);
     }
 
     if (std::cmp_greater(sceneSelection, 0)) {
