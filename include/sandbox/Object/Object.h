@@ -20,24 +20,20 @@ class Object {
     return center;
   }
 
-  // void moveTo(glm::vec3 t_position) {
-  //   position = t_position;
-  // }
-
-  // void rotateTo(float angle, glm::vec3 axis) {
-
-  // }
-
   virtual void draw(class Shader* shader) = 0;
-  // virtual void drawOutline(class Shader* shader) = 0;
-  // virtual void drawSolid(class Shader* shader) = 0;
-
+  // draw the outline as a line here
+  virtual void drawOutline(class Shader* shader) {
+    this->draw(shader);
+  }
+  // draw a solid color
+  virtual void drawSolid(class Shader* shader) {
+    this->draw(shader);
+  }
 
   // required:
   // translation
   // rotation about object's center
   // rotation about external point
-
   void translateBy(glm::vec3 amount) {
     center = center + amount;
     recomputeInternals();
@@ -59,6 +55,8 @@ class Object {
     model = glm::translate(model, newCenter);
 
     modelMatrix = model;
+
+    recomputeInternals();
   }
 
   // rotate about origin (position)
