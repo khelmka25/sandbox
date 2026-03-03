@@ -19,6 +19,8 @@ class GeometryList {
   void clear();
   void rebuffer();
 
+  std::size_t elementCount();
+
  protected:
   // https://pillow-wiredfool.readthedocs.io/en/latest/reference/ImageDraw.html
   // (0, 0) is designated as the top-left of the screen
@@ -45,6 +47,7 @@ class GeometryList {
   //         +y
   // T0: 0, 1, 2
   // T1: 0, 2, 3
+  void buildPoint(glm::vec2 p, glm::vec2 uv, glm::vec4 color);
   void buildLine(glm::vec2 p1, glm::vec2 p2, glm::vec2 uv1, glm::vec2 uv2, glm::vec4 color);
   void buildTriangle(glm::vec2 p1, glm::vec2 p2, glm::vec2 p3, glm::vec2 uv1, glm::vec2 uv2, glm::vec2 uv3, glm::vec4 color);
   void buildRect(glm::vec2 p1, glm::vec2 p2, glm::vec2 uv1, glm::vec2 uv2, glm::vec4 color);

@@ -78,6 +78,19 @@ void GeometryList::rebuffer() {
   glBindVertexArray(0);
 }
 
+std::size_t GeometryList::elementCount() {
+  return indices.size();
+}
+
+void GeometryList::buildPoint(glm::vec2 p, glm::vec2 uv, glm::vec4 color) {
+  const std::size_t offset = vertices.size();
+  vertices.emplace_back(p.x, p.y, 0.f);
+  colors.push_back(color);
+  uvs.push_back(uv);
+  
+  indices.push_back(offset);
+}
+
 void GeometryList::buildLine(glm::vec2 p1, glm::vec2 p2, glm::vec2 uv1, glm::vec2 uv2, glm::vec4 color) {
   const std::size_t offset = vertices.size();
 

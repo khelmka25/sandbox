@@ -29,14 +29,15 @@ struct DrawList : public GeometryList {
   void addEllipseOutline(glm::vec2 p1, glm::vec2 p2, glm::vec4 color, unsigned width);
 
   void addLineSegment(glm::vec2 p1, glm::vec2 p2, glm::vec4 color, unsigned width);
-  void addLineSegments(std::vector<glm::vec2>, glm::vec4 color, unsigned width);
+  void addLineSegments(std::vector<glm::vec2>& points, glm::vec4 color, unsigned width);
 
-  void addPoint(glm::vec2 center, glm::vec4 color);
+  void addPoint(glm::vec2 center, glm::vec4 color, unsigned size);
 
-  void addPolygon(std::vector<glm::vec2> points, glm::vec4 color);
-  void addPolygonOutline(std::vector<glm::vec2> points, glm::vec4 color, unsigned width);
+  void addPolygon(std::vector<glm::vec2>& points, glm::vec4 color);
+  void addPolygonOutline(std::vector<glm::vec2>& points, glm::vec4 color, unsigned width);
 
   void addTriangle(glm::vec2 p1, glm::vec2 p2, glm::vec2 p3, glm::vec4 color);
+  void addTriangleOutline(glm::vec2 p1, glm::vec2 p2, glm::vec2 p3, glm::vec4 color, unsigned width);
 
   void addRect(glm::vec2 p1, glm::vec2 p2, glm::vec4 color);
   void addRectOutline(glm::vec2 p1, glm::vec2 p2, glm::vec4 color, unsigned width);
@@ -44,22 +45,38 @@ struct DrawList : public GeometryList {
   void addCircle(glm::vec2 center, glm::vec4 color);
   void addCircleOutline(glm::vec2 center, glm::vec4 color, unsigned width);
 
-  void addPieSlice(glm::vec2 center, glm::vec4 color);
-  void addPieSliceOutline(glm::vec2 center, glm::vec4 color, unsigned width);
+  void addSector(glm::vec2 center, float t_start, float t_end, glm::vec4 color);
+  void addSectorOutline(glm::vec2 center, float t_start, float t_end, glm::vec4 color, unsigned width);
+
+  void addArc(glm::vec2 center, float t_start, float t_end, glm::vec4 color, unsigned width);
 
   void addTexturedRect(glm::vec2 p1, glm::vec2 p2, glm::vec4 color, std::shared_ptr<class TextureAtlas> atlas,
                        unsigned subTextureId);
 
+ private:
+  // a lot of these commands deal with proceduarally generating
+  // arrays of points for triangles or lines. below are a set of 
+  // common utilities to prevent code duplication
+  
+    
  protected:
   struct DrawCommand {
-    std::size_t begin;
-    std::size_t end;
-    int primitive;
+    DrawCommand() = default;
+    
+    std::size_t begin = 0ull;
+    std::size_t end = 0ull;
+    int primitive = GL_NONE;
+    union {
+      unsigned lineWidth;
+      unsigned pointSize;
+    };
   };
 
   std::vector<DrawCommand> drawCommands;
   
-  void beginPrimitive(int primitive);
+  void beginTriangles();
+  void beginLines(unsigned width);
+  void beginPoints(unsigned width);
   void endPrimitive();
 };
 }  // namespace sb
