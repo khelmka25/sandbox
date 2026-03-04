@@ -6,8 +6,6 @@
 #include "Camera/Camera.h"
 #include "Data.h"
 #include "Graphics/Framebuffer.h"
-#include "Graphics/Text/Atlas.h"
-#include "Graphics/Text/Text.h"
 #include "Graphics/Texture.h"
 #include "Object/CubePrimitive.h"
 #include "Object/Model/Model.h"
@@ -20,6 +18,9 @@
 #include "Preprocessor/Irradiance.h"
 #include "Preprocessor/Prefilter.h"
 #include "Graphics/DrawList.h"
+#include "Graphics/TextureAtlas.h"
+#include "Graphics/CharacterMetric.h"
+#include "Graphics/CharacterMetricSet.h"
 
 using namespace std::string_view_literals;
 
@@ -133,15 +134,10 @@ int main(int argc, char** argv) {
   sb::Shader selectionShader("selection"sv, "assets/shaders/utility/selection.vs", "assets/shaders/utility/selection.fs");
   sb::Shader backgroundShader("background"sv, "assets/shaders/background.vs", "assets/shaders/background.fs");
   sb::Shader outlineShader("outline"sv, "assets/shaders/pbr.vs", "assets/shaders/utility/outline.fs");
-  sb::Shader textShader("text"sv, "assets/shaders/widget/text.vs", "assets/shaders/widget/text.fs");
+  sb::Shader uiShader("ui"sv, "assets/shaders/widget/ui.vs", "assets/shaders/widget/ui.fs");
   
   // Shaders: pbr + ibl shader
   sb::Shader pbrShader("pbr"sv, "assets/shaders/pbr.vs", "assets/shaders/pbr.fs");
-
-  // Text atlas
-  sb::Atlas atlasSmall("assets/fonts/Monaspace Neon Var.ttf", 16);
-  sb::Atlas atlasMedium("assets/fonts/Monaspace Neon Var.ttf", 24);
-  sb::Atlas atlasLarge("assets/fonts/Monaspace Neon Var.ttf", 32);
 
   // Widgets
   std::unique_ptr<sb::Object> orbitObject = std::make_unique<sb::Orbit>();
@@ -168,26 +164,47 @@ int main(int argc, char** argv) {
 
   sb::PlanePrimitive plane;
 
-  // text prototype
-  sb::Text text0, text1, text2;
-  sb::createText("Small Text", 0, 0, &atlasSmall, &text0);
-  sb::createText("Medium Text", 0, 16, &atlasMedium, &text1);
-  sb::createText("Large Text", 0, 40, &atlasLarge, &text2);
-
   // 0 = no selection, 1 = 0th object selected
   int sceneSelection = 0;
+  
+  auto atlas = std::make_shared<sb::TextureAtlas>();
+  // utility textures
+  atlas->addBlankTexture();
+  atlas->addMissingTexture();
+  // various fonts, requierd to save the output base name ids for later use
+  const auto monaspaceNV16 = atlas->addFont("assets/fonts/Monaspace Neon Var.ttf", 16);
+  const auto monaspaceNV24 = atlas->addFont("assets/fonts/Monaspace Neon Var.ttf", 24);
+  const auto monaspaceNV32 = atlas->addFont("assets/fonts/Monaspace Neon Var.ttf", 32);
+  // fun textures for testing
+  const auto nasaTextureId = atlas->addTexture("assets/textures/nasa-meatball.png");
 
-  // sb::DrawList drawlist;
-  // drawlist.addText({0, 0}, "example text here", &atlasSmall, {1.f, 1.f, 1.f, 1.f});
+  // recompute the arrangement of the texture atlas:
+  atlas->recompute();
+  // upload the subtexture data to the GL
+  atlas->rebuffer();
 
-  // drawlist.rebuffer();
+  // Character Metric Set
+  const auto monaspaceMetricSet16 = std::make_shared<sb::CharacterMetricSet>("assets/fonts/Monaspace Neon Var.ttf", 16);
+  const auto monaspaceMetricSet24 = std::make_shared<sb::CharacterMetricSet>("assets/fonts/Monaspace Neon Var.ttf", 24);
+  const auto monaspaceMetricSet32 = std::make_shared<sb::CharacterMetricSet>("assets/fonts/Monaspace Neon Var.ttf", 32);
+
+  // create drawlist:
+  auto drawlist = std::make_shared<sb::DrawList>();
+  drawlist->addTexturedRect({100, 100}, {600, 600}, glm::vec4(1), atlas, nasaTextureId);
+  drawlist->addText({100, 100}, "Hello, World!"sv, glm::vec4(1.f), atlas, monaspaceNV16, monaspaceMetricSet16);
+  drawlist->addText({0, 0}, "Small Text", glm::vec4(1.f), atlas, monaspaceNV16, monaspaceMetricSet16);
+  drawlist->addText({0, 16}, "Medium Text", glm::vec4(1.f), atlas, monaspaceNV24, monaspaceMetricSet24);
+  drawlist->addText({0, 40}, "Large Text", glm::vec4(1.f), atlas, monaspaceNV32, monaspaceMetricSet32);
+
+
+  drawlist->rebuffer();
 
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
     // Model, View, Projection
     const auto& view = camera.view();
     auto projection =
-        glm::perspective(glm::radians(70.f), sb::data::displayWidth / sb::data::displayHeight, 0.1f, 100.0f);
+        glm::perspective(glm::radians(70.f), sb::data::displayWidth / sb::data::displayHeight, 0.1f, 1000.0f);
 
     // bind the selection framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
@@ -303,24 +320,24 @@ int main(int argc, char** argv) {
       glDepthFunc(GL_LESS);
     }
 
-    {
-      glCullFace(GL_FRONT);
-      /* Draw the background */
-      // change depth function so depth test passes when values are equal to depth buffer's content
-      glDepthFunc(GL_LEQUAL);
-      backgroundShader.use();
-      // remove translation from the view matrix
-      backgroundShader.setMat4("view", glm::mat4(glm::mat3(view)));
-      backgroundShader.setMat4("projection", projection);
-      backgroundShader.setMat4("environmentMap", 0);
-      glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxCubemap);
-      background.draw(&backgroundShader);
-      // set depth function back to default
-      glDepthFunc(GL_LESS);
+    // {
+    //   glCullFace(GL_FRONT);
+    //   /* Draw the background */
+    //   // change depth function so depth test passes when values are equal to depth buffer's content
+    //   glDepthFunc(GL_LEQUAL);
+    //   backgroundShader.use();
+    //   // remove translation from the view matrix
+    //   backgroundShader.setMat4("view", glm::mat4(glm::mat3(view)));
+    //   backgroundShader.setMat4("projection", projection);
+    //   backgroundShader.setMat4("environmentMap", 0);
+    //   glActiveTexture(GL_TEXTURE0);
+    //   glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxCubemap);
+    //   background.draw(&backgroundShader);
+    //   // set depth function back to default
+    //   glDepthFunc(GL_LESS);
 
-      glCullFace(GL_BACK);
-    }
+    //   glCullFace(GL_BACK);
+    // }
 
     if (std::cmp_greater(sceneSelection, 0)) {
       /* draw the selected object outline using the stencil */
@@ -347,35 +364,23 @@ int main(int argc, char** argv) {
     }
 
     {
-      // Draw the text into the scene
-      textShader.use();
+      glDisable(GL_CULL_FACE);
+      uiShader.use();
+      // source texture 2D
+      uiShader.setInt("atlas", 0);
       glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, atlasSmall.texture);
-      glActiveTexture(GL_TEXTURE1);
-      glBindTexture(GL_TEXTURE_2D, atlasMedium.texture);
-      glActiveTexture(GL_TEXTURE2);
-      glBindTexture(GL_TEXTURE_2D, atlasLarge.texture);
-      glm::mat4 projection2 = glm::ortho(0.f, sb::data::displayWidth, 0.f, sb::data::displayHeight);
-      textShader.setMat4("projection", projection2);
-      textShader.setMat4("view", view);
-      glm::mat4 txtModel(1);
-      // txtModel = glm::scale(txtModel, glm::vec3(1.f / 96.f, 1.f / 96.f, 1));
-      textShader.setMat4("model", txtModel);
+      glBindTexture(GL_TEXTURE_2D, atlas->textureName);
+      // proj, view, model
+      const glm::mat4 uiProj = glm::ortho(0.f, +sb::data::displayWidth, +sb::data::displayHeight, 0.f, -1.0f, 1.0f);
+      glm::mat4 uiModel(1.f);
+      // uiModel = glm::translate(uiModel, glm::vec3(0, +sb::data::displayHeight, 0.f));
+      // update in the shader:
+      uiShader.setMat4("projection", uiProj);
+      uiShader.setMat4("model", uiModel);
 
-      textShader.setInt("atlas", 0);
-      glBindVertexArray(text0.vao);
-      glDrawArrays(GL_TRIANGLES, 0, 3 * text0.triCount);
-      glBindVertexArray(0);
-
-      textShader.setInt("atlas", 1);
-      glBindVertexArray(text1.vao);
-      glDrawArrays(GL_TRIANGLES, 0, 3 * text1.triCount);
-      glBindVertexArray(0);
-
-      textShader.setInt("atlas", 2);
-      glBindVertexArray(text2.vao);
-      glDrawArrays(GL_TRIANGLES, 0, 3 * text2.triCount);
-      glBindVertexArray(0);
+      // draw here:
+      drawlist->draw(); 
+      glEnable(GL_CULL_FACE);
     }
 
     /* Flush results to screen and poll events */

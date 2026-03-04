@@ -20,23 +20,25 @@ void DrawList::clear() {
   GeometryList::clear();
 }
 
-void DrawList::draw() {
+void DrawList::rebuffer() {
   // end the current draw command - if any
   endPrimitive();
+  GeometryList::rebuffer();
+}
 
+void DrawList::draw() {
   glBindVertexArray(vao);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
   for (const auto& drawCommand : drawCommands) {
     const std::size_t offset = drawCommand.begin;
-    const std::size_t count = drawCommand.end - drawCommand.end;
-    glDrawElements(drawCommand.primitive, count, GL_UNSIGNED_BYTE, (void*)offset);
+    const std::size_t count = drawCommand.end - drawCommand.begin;
+    glDrawElements(drawCommand.primitive, count, GL_UNSIGNED_INT, (void*)offset);
   }
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
 }
 
-void DrawList::addText(glm::vec2 position, std::string_view text, glm::vec4 color, std::shared_ptr<TextureAtlas> atlas,
+void DrawList::addText(glm::vec2 position, std::string_view text, glm::vec4 color, std::shared_ptr<TextureAtlas> atlas, unsigned fontBaseId,
                        std::shared_ptr<CharacterMetricSet> metricSet) {
   beginTriangles();
   // draw text as a set of textured rects
@@ -53,7 +55,6 @@ void DrawList::addText(glm::vec2 position, std::string_view text, glm::vec4 colo
     // |t0/t1|
     // br---bl
     // font glyph origin
-    glm::vec2 origin(xpos, ypos);
     // |   tr---tl
     // |   |   / |
     // |   |0 / 1|
@@ -63,7 +64,7 @@ void DrawList::addText(glm::vec2 position, std::string_view text, glm::vec4 colo
     const glm::vec2 p1(xpos + metric.horiBearing, ypos + metric.vertBearing);
     const glm::vec2 p2(xpos + metric.horiBearing + metric.width, ypos + metric.vertBearing - metric.height);
 
-    const auto [uv1, uv2] = atlas->getCharacterUv(0, c);
+    const auto [uv1, uv2] = atlas->getCharacterUv(fontBaseId, c);
 
     // build a textured rect
     buildRect(p1, p2, uv1, uv2, color);
@@ -261,6 +262,10 @@ void DrawList::addArc(glm::vec2 center, float t_start, float t_end, glm::vec4 co
 void DrawList::addTexturedRect(glm::vec2 p1, glm::vec2 p2, glm::vec4 color, std::shared_ptr<class TextureAtlas> atlas,
                                unsigned subTextureId) {
   beginTriangles();
+
+  const auto [uv1, uv2] = atlas->getTextureUv(subTextureId);
+
+  buildRect(p1, p2, uv1, uv2, color);
 }
 
 void DrawList::beginTriangles() {

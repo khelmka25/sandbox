@@ -18,12 +18,12 @@ struct DrawList : public GeometryList {
 
   using GeometryList::empty;
   void clear();
-  using GeometryList::rebuffer;
+  void rebuffer();
 
   void draw();
 
  public:
-  void addText(glm::vec2 p1, std::string_view text, glm::vec4 color, std::shared_ptr<class TextureAtlas> atlas, std::shared_ptr<class CharacterMetricSet> metricSet);
+  void addText(glm::vec2 p1, std::string_view text, glm::vec4 color, std::shared_ptr<class TextureAtlas> atlas, unsigned fontBaseId, std::shared_ptr<class CharacterMetricSet> metricSet);
 
   void addEllipse(glm::vec2 p1, glm::vec2 p2, glm::vec4 color);
   void addEllipseOutline(glm::vec2 p1, glm::vec2 p2, glm::vec4 color, unsigned width);

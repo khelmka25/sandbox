@@ -212,8 +212,8 @@ void TextureAtlas::recompute() {
     const auto& descriptor = textureDescriptors.at(i);
     // create a rect to represent this texture 
     rect_type rect;
-    rect.w - descriptor.size.x;
-    rect.h - descriptor.size.y;
+    rect.w = descriptor.size.x;
+    rect.h = descriptor.size.y;
     rectangles.push_back(rect);
   }
 
@@ -232,7 +232,7 @@ void TextureAtlas::recompute() {
   // ensure that the order does not change                                                   
   const auto result_size = rectpack2D::find_best_packing_dont_sort<spaces_type>(rectangles, input);
 
-  report_result(result_size);
+  // report_result(result_size);
 
   // now takes the result and update the descriptor
   for (std::size_t i{}; i < textureDescriptors.size(); i++) {
@@ -242,6 +242,9 @@ void TextureAtlas::recompute() {
     descriptor.position.x = rect.x;
     descriptor.position.y = rect.y;
   }
+
+  textureSize.x = result_size.w;
+  textureSize.y = result_size.h;
 }
 
 void TextureAtlas::rebuffer() {
@@ -287,7 +290,7 @@ void TextureAtlas::rebuffer() {
     glTexSubImage2D(GL_TEXTURE_2D, mip, xoffset, yoffset, width, height, format, GL_UNSIGNED_BYTE, storage.get());
   }
 
-  glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+  glGenerateMipmap(GL_TEXTURE_2D);
   // done!
 }
 

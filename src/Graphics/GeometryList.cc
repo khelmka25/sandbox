@@ -51,23 +51,10 @@ void GeometryList::rebuffer() {
   // rebuffer the uvs:
   glBufferSubData(GL_ARRAY_BUFFER, uvsOffset, uvsSize, uvs.data());
 
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  // 2. Upload Index Data:
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-  // indices offset and size
-  const std::size_t indicesOffset = 0ull;
-  const std::size_t indicesSize = indices.size() * sizeof(decltype(indices)::value_type);
-
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, nullptr, GL_DYNAMIC_DRAW);
-  glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesOffset, indicesSize, indices.data());
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  // 3. Set up vertex attributes: struct of arrays
+  // 2. Set up vertex attributes: struct of arrays
   // vertices
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(decltype(vertices)::value_type), (void*)verticesOffset);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(decltype(vertices)::value_type), (void*)(verticesOffset));
   // colors
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(decltype(colors)::value_type), (void*)(colorsOffset));
@@ -75,7 +62,17 @@ void GeometryList::rebuffer() {
   glEnableVertexAttribArray(2);
   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(decltype(uvs)::value_type), (void*)(uvsOffset));
 
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
+
+  // 3. Upload Index Data:
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+  // indices size
+  const std::size_t indicesSize = indices.size() * sizeof(decltype(indices)::value_type);
+
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, indices.data(), GL_DYNAMIC_DRAW);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 std::size_t GeometryList::elementCount() {
@@ -181,8 +178,8 @@ void GeometryList::buildRect(glm::vec2 p1, glm::vec2 p2, glm::vec2 uv1, glm::vec
   indices.push_back(offset + 1ull);
   indices.push_back(offset + 2ull);
   // indices: triangle 2
-  indices.push_back(offset + 3ull);
   indices.push_back(offset + 2ull);
+  indices.push_back(offset + 3ull);
   indices.push_back(offset + 0ull);
 }
 

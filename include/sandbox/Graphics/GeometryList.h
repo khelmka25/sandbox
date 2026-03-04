@@ -12,7 +12,7 @@
 namespace sb {
 class GeometryList {
  public:
-  GeometryList() = default;
+  GeometryList();
 
  protected:
   bool empty();

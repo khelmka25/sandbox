@@ -58,6 +58,7 @@ struct TextureAtlas {
   unsigned blankTextureIndex;
   unsigned missingTextureIndex;
 
+ public:
   // GL texture name
   unsigned textureName;
 };
