@@ -33,6 +33,12 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/deps/freetype)
 # assimp
 add_subdirectory(${CMAKE_SOURCE_DIR}/deps/assimp)
 
+# gifdec
+add_library(gifdec STATIC ${CMAKE_SOURCE_DIR}/deps/gifdec/gifdec.c)
+target_include_directories(gifdec PRIVATE
+  ${CMAKE_SOURCE_DIR}/deps/gifdec/
+)
+
 enable_testing()
 add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
 
@@ -43,6 +49,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   assimp
   glfw
   glad
+  gifdec
 )
 
 target_compile_options(${PROJECT_NAME} PUBLIC -g)

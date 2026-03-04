@@ -15,6 +15,7 @@ target_include_directories(sandboxlib
   ${CMAKE_SOURCE_DIR}/deps/assimp/include
   ${CMAKE_SOURCE_DIR}/deps/freetype/include
   ${CMAKE_SOURCE_DIR}/deps/rectpack2D/src
+  ${CMAKE_SOURCE_DIR}/deps/gifdec/
 )
 
 target_compile_options(sandboxlib PUBLIC -g)

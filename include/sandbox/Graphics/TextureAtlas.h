@@ -25,14 +25,22 @@ struct TextureAtlas {
   unsigned addTexture(std::filesystem::path filepath) noexcept(false);
 
   [[nodiscard]]
-  std::pair<glm::vec2, glm::vec2> getTextureUv(unsigned textureName) noexcept(false);
+  std::pair<glm::vec2, glm::vec2> getTextureUv(unsigned subtextureId) noexcept(true);
+
+  // add a gif as a series of images, returns the index of the base image
+  [[nodiscard]]
+  unsigned addAnimatedTexture(std::filesystem::path filepath) noexcept(false);
+
+  // get the uvs for one from of the animated texture
+  [[nodiscard]]
+  std::pair<glm::vec2, glm::vec2> getAnimatedTextureFrameUv(unsigned firstSubtextureId, unsigned frameIndex) noexcept(true);
 
   // add a font (multiple textures) and return the referencing name
   [[nodiscard]]
   unsigned addFont(std::filesystem::path filepath, int size) noexcept(false);
 
   [[nodiscard]]
-  std::pair<glm::vec2, glm::vec2> getCharacterUv(unsigned fontBaseName, int c) noexcept(false);
+  std::pair<glm::vec2, glm::vec2> getCharacterUv(unsigned firstSubtextureId, int c) noexcept(true);
 
   // recompute the locations of the subtextures
   void recompute();
@@ -56,7 +64,7 @@ struct TextureAtlas {
   glm::ivec2 textureSize;
   
   unsigned blankTextureIndex;
-  unsigned missingTextureIndex;
+  unsigned missingTextureId;
 
  public:
   // GL texture name

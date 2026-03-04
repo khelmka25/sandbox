@@ -4,6 +4,7 @@
 #include <glad/glad.h>
 #include <rectpack2D/finders_interface.h>
 #include <stb_image.h>
+#include <gifdec.h>
 
 #include <cstdlib>
 #include <filesystem>
@@ -33,7 +34,7 @@ unsigned TextureAtlas::addBlankTexture() {
 }
 
 unsigned TextureAtlas::addMissingTexture() {
-  missingTextureIndex = textureDescriptors.size();
+  missingTextureId = textureDescriptors.size();
   // make a patterned rect that is the following:
   // checkered black and pink color that is 4x4
   TextureDesciptor descriptor;
@@ -60,7 +61,7 @@ unsigned TextureAtlas::addMissingTexture() {
   }
   textureStorages.emplace_back(std::move(storage));
 
-  return missingTextureIndex;
+  return missingTextureId;
 }
 
 unsigned TextureAtlas::addTexture(std::filesystem::path filepath) noexcept(false) {
@@ -82,7 +83,12 @@ unsigned TextureAtlas::addTexture(std::filesystem::path filepath) noexcept(false
   return index;
 }
 
-std::pair<glm::vec2, glm::vec2> TextureAtlas::getTextureUv(unsigned textureName) noexcept(false)  {
+std::pair<glm::vec2, glm::vec2> TextureAtlas::getTextureUv(unsigned textureName) noexcept(true)  {
+  // need bounds checking:
+  if (textureName >= textureDescriptors.size()) {
+    return getTextureUv(missingTextureId);
+  }
+  
   const unsigned index = textureName;
 
   // compute the uv coordinates of the subtexture
@@ -97,6 +103,46 @@ std::pair<glm::vec2, glm::vec2> TextureAtlas::getTextureUv(unsigned textureName)
   p2 = p2 / glm::vec2(textureSize);
 
   return std::make_pair(p1, p2);
+}
+
+unsigned TextureAtlas::addAnimatedTexture(std::filesystem::path filepath) noexcept(false) {
+  gd_GIF* gif = gd_open_gif(filepath.c_str());
+  if (!gif) {
+    std::cerr << "Failed to open gif: " << filepath << std::endl;
+    throw std::runtime_error("Failed to open gif");
+  }
+
+  const unsigned width = gif->width;
+  const unsigned height = gif->height;
+
+  const unsigned gifSubtextureStartId = textureDescriptors.size();
+
+  // load each frame from the gif file
+  unsigned numFrames = 0;
+  while (gd_get_frame(gif)) {
+    // descriptor for this frame
+    TextureDesciptor descriptor;
+    descriptor.size.x = width;
+    descriptor.size.y = height;
+    descriptor.nrChannels = 3;
+    textureDescriptors.push_back(std::move(descriptor));
+    // load and commit to memory:
+    auto storage = std::make_unique<unsigned char[]>(width * height * 3u);
+    gd_render_frame(gif, storage.get());
+    // commit the storage to memory:
+    textureStorages.push_back(std::move(storage));
+    
+    numFrames++;
+  }
+
+  gd_close_gif(gif);
+
+  // conditional return if we have any frames of the gif loaded
+  return (numFrames > 0) ? gifSubtextureStartId : missingTextureId;
+}
+
+std::pair<glm::vec2, glm::vec2> TextureAtlas::getAnimatedTextureFrameUv(unsigned firstSubtextureId, unsigned frameIndex) noexcept(true) {
+  return getTextureUv(firstSubtextureId + frameIndex);
 }
 
 unsigned TextureAtlas::addFont(std::filesystem::path filepath, int fontSize) noexcept(false) {
@@ -155,29 +201,15 @@ unsigned TextureAtlas::addFont(std::filesystem::path filepath, int fontSize) noe
   return index;
 }
 
-std::pair<glm::vec2, glm::vec2> TextureAtlas::getCharacterUv(unsigned fontBaseName, int c) noexcept(false)  {
-  // we don't save control characters in the texture, so give 0s
+std::pair<glm::vec2, glm::vec2> TextureAtlas::getCharacterUv(unsigned fontBaseName, int c) noexcept(true)  {
+  // we don't save control characters in the texture, so just resuse the space (blank texture) for the 
   if (std::iscntrl(c)) {
-    return std::make_pair(glm::vec2(0.f), glm::vec2(0.f));
+    // just return the first character ("space")
+    return getTextureUv(fontBaseName);
   }
 
   // make 0 based so space is the "first" character
-  const int valid_c = c - 0x20;
-
-  const unsigned index = fontBaseName + valid_c;
-
-  // compute the uv coordinates of the subtexture
-  TextureDesciptor& descriptor = textureDescriptors.at(index);
-
-  // set the corners of the uvrect
-  glm::vec2 p1(descriptor.position);
-  glm::vec2 p2(descriptor.position + descriptor.size);
-
-  // normalize to [0, 1] range
-  p1 = p1 / glm::vec2(textureSize);
-  p2 = p2 / glm::vec2(textureSize);
-
-  return std::make_pair(p1, p2);
+  return getTextureUv(fontBaseName + (c - 0x20));
 }
 
 void TextureAtlas::recompute() {
@@ -192,7 +224,7 @@ void TextureAtlas::recompute() {
 
   auto report_unsuccessful = [](rect_type&) { return rectpack2D::callback_result::ABORT_PACKING; };
 
-  const auto max_side = 0x1000;
+  const auto max_side = 0x4000;
   const auto discard_step = -4;
 
   class my_rect {

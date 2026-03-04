@@ -177,6 +177,8 @@ int main(int argc, char** argv) {
   const auto monaspaceNV32 = atlas->addFont("assets/fonts/Monaspace Neon Var.ttf", 32);
   // fun textures for testing
   const auto nasaTextureId = atlas->addTexture("assets/textures/nasa-meatball.png");
+  // add a gif for testing
+  const auto duckTextureId = atlas->addAnimatedTexture("assets/textures/walking-duck.gif");
 
   // recompute the arrangement of the texture atlas:
   atlas->recompute();
@@ -190,12 +192,15 @@ int main(int argc, char** argv) {
 
   // create drawlist:
   auto drawlist = std::make_shared<sb::DrawList>();
-  drawlist->addTexturedRect({100, 100}, {600, 600}, glm::vec4(1), atlas, nasaTextureId);
+  // drawlist->addTexturedRect({100, 100}, {600, 600}, glm::vec4(1), atlas, nasaTextureId);
   drawlist->addText({100, 100}, "Hello, World!"sv, glm::vec4(1.f), atlas, monaspaceNV16, monaspaceMetricSet16);
   drawlist->addText({0, 0}, "Small Text", glm::vec4(1.f), atlas, monaspaceNV16, monaspaceMetricSet16);
   drawlist->addText({0, 16}, "Medium Text", glm::vec4(1.f), atlas, monaspaceNV24, monaspaceMetricSet24);
   drawlist->addText({0, 40}, "Large Text", glm::vec4(1.f), atlas, monaspaceNV32, monaspaceMetricSet32);
 
+  for (int i = 0; i < 10; i++) {
+    drawlist->addTexturedRect({100, 100 * i}, {100 + 100, 100 * (i + 1)}, glm::vec4(1), atlas, duckTextureId + i);
+  }
 
   drawlist->rebuffer();
 

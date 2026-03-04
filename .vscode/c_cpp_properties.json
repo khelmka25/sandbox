@@ -11,7 +11,8 @@
                 "${workspaceFolder}/deps/argh/",
                 "${workspaceFolder}/deps/assimp/include/",
                 "${workspaceFolder}/deps/freetype/include/",
-                "${workspaceFolder}/deps/rectpack2D/src/"
+                "${workspaceFolder}/deps/rectpack2D/src/",
+                "${workspaceFolder}/deps/gifdec/"
             ],
             "defines": [],
             "cStandard": "c17",
