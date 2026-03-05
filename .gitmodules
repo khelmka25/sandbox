@@ -25,3 +25,6 @@
 [submodule "deps/rectpack2D"]
 	path = deps/rectpack2D
 	url = https://github.com/TeamHypersomnia/rectpack2D.git
+[submodule "deps/gifdec"]
+	path = deps/gifdec
+	url = https://github.com/lecram/gifdec.git

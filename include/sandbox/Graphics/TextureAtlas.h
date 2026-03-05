@@ -15,19 +15,32 @@ namespace sb {
 // subtextures that can be accessed via uv coordinates
 // these uv coordinates are available via named lookup in the TextureAtlas
 struct TextureAtlas {
+  // this texture is used for widgets, it contains a fully white, opaque texture
+  unsigned addBlankTexture();
+  // this is used to signify that a texture index name is invalid
+  unsigned addMissingTexture();
+
   // add a single texture, and return the referencing name
   [[nodiscard]]
-  unsigned addTexture(std::filesystem::path filepath);
+  unsigned addTexture(std::filesystem::path filepath) noexcept(false);
 
   [[nodiscard]]
-  std::pair<glm::vec2, glm::vec2> getTextureUv(unsigned textureName);
+  std::pair<glm::vec2, glm::vec2> getTextureUv(unsigned subtextureId) noexcept(true);
+
+  // add a gif as a series of images, returns the index of the base image
+  [[nodiscard]]
+  unsigned addAnimatedTexture(std::filesystem::path filepath) noexcept(false);
+
+  // get the uvs for one from of the animated texture
+  [[nodiscard]]
+  std::pair<glm::vec2, glm::vec2> getAnimatedTextureFrameUv(unsigned firstSubtextureId, unsigned frameIndex) noexcept(true);
 
   // add a font (multiple textures) and return the referencing name
   [[nodiscard]]
-  unsigned addFont(std::filesystem::path filepath, int size);
+  unsigned addFont(std::filesystem::path filepath, int size) noexcept(false);
 
   [[nodiscard]]
-  std::pair<glm::vec2, glm::vec2> getCharacterUv(unsigned fontBaseName, int c);
+  std::pair<glm::vec2, glm::vec2> getCharacterUv(unsigned firstSubtextureId, int c) noexcept(true);
 
   // recompute the locations of the subtextures
   void recompute();
@@ -37,19 +50,23 @@ struct TextureAtlas {
   // and upload all subtextures into this texture
   void rebuffer();
 
-  struct TextureMetadata {
+  struct TextureDesciptor {
     glm::ivec2 position;
     glm::ivec2 size;
     int nrChannels;
-    std::unique_ptr<unsigned char[]> data;
   };
 
-  std::vector<TextureMetadata> textureMetadata;
+  std::vector<std::unique_ptr<unsigned char[]>> textureStorages;
+  std::vector<TextureDesciptor> textureDescriptors;
 
  protected:
   // texture size of the final texture
   glm::ivec2 textureSize;
+  
+  unsigned blankTextureIndex;
+  unsigned missingTextureId;
 
+ public:
   // GL texture name
   unsigned textureName;
 };
