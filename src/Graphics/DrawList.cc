@@ -30,9 +30,25 @@ void DrawList::draw() {
   glBindVertexArray(vao);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
   for (const auto& drawCommand : drawCommands) {
-    const std::size_t offset = drawCommand.begin;
+    const std::size_t offset = drawCommand.begin * sizeof(unsigned int);
     const std::size_t count = drawCommand.end - drawCommand.begin;
-    glDrawElements(drawCommand.primitive, count, GL_UNSIGNED_INT, (void*)offset);
+    switch (drawCommand.primitive) {
+      case GL_LINE_STRIP:
+        [[fallthrough]];
+      case GL_LINE_LOOP:
+        [[fallthrough]];
+      case GL_LINES: {
+        glLineWidth(drawCommand.lineWidth);
+        break;
+      }
+      case GL_POINTS: {
+        glPointSize(drawCommand.pointSize);
+        break;
+      }
+      default:
+        break;
+    }
+    glDrawElements(drawCommand.primitive, count, GL_UNSIGNED_INT, (void*)(offset));
   }
 
   glBindVertexArray(0);
