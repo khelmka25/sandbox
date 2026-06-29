@@ -1,12 +1,19 @@
 #include <argh.h>
 
+#include <memory>
 #include <utility>
 
 #include "Application/Window.h"
 #include "Camera/Camera.h"
+#include "Camera/OrbitCamera.h"
+#include "Camera/ScrollCamera.h"
 #include "Data.h"
+#include "Graphics/CharacterMetric.h"
+#include "Graphics/CharacterMetricSet.h"
+#include "Graphics/DrawList.h"
 #include "Graphics/Framebuffer.h"
 #include "Graphics/Texture.h"
+#include "Graphics/TextureAtlas.h"
 #include "Object/CubePrimitive.h"
 #include "Object/Model/Model.h"
 #include "Object/PlanePrimitive.h"
@@ -17,10 +24,6 @@
 #include "Preprocessor/Environment.h"
 #include "Preprocessor/Irradiance.h"
 #include "Preprocessor/Prefilter.h"
-#include "Graphics/DrawList.h"
-#include "Graphics/TextureAtlas.h"
-#include "Graphics/CharacterMetric.h"
-#include "Graphics/CharacterMetricSet.h"
 
 using namespace std::string_view_literals;
 
@@ -33,7 +36,7 @@ int main(int argc, char** argv) {
 
   // PBL + IBL
   unsigned envMap3D, irradianceMap, prefilterMap, brdfLUT;
-  
+
   // Parse the command line, generate new textures if req
   // "-g/--gen <filename.hdr>" generates a new set of hdr maps
   // "-c/--cache" uses the cached generated textures
@@ -56,19 +59,19 @@ int main(int argc, char** argv) {
     // begin generation
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
-  
+
     // convert the given hdr into a cubemap for use
     envMap3D = sb::EnvironmentMap::create(filepath);
 
     // irradiance map: 128x128
     irradianceMap = sb::IrradianceMap::create(envMap3D, 128);
-    
+
     // prefilter map: 128x128, 5 mips
     prefilterMap = sb::PrefilterMap::create(envMap3D, 128u, 5u);
 
     // BRDF-LUT: 512x512
     brdfLUT = sb::BrdfLut::create(512u);
-    
+
     // end generation
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -102,7 +105,7 @@ int main(int argc, char** argv) {
   assert((brdfLUT != 0) && "BrdfLut must be initialized");
 
   auto skyboxCubemap = envMap3D;
-  
+
   // blurred background or the hdr cubmap?
   if (cmdl[{"--no-skybox"}]) {
     skyboxCubemap = irradianceMap;
@@ -127,15 +130,19 @@ int main(int argc, char** argv) {
   glStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
 
   // Create the camera
-  sb::Camera camera("cam"sv, {0, 0, 0}, {0, 1, 0}, {1, 0, 0}, 3.f, 0.1f, 0.f, 0.f);
+  auto scrollCamera = std::make_shared<sb::ScrollCamera>(glm::vec3(0.f), 3.f);
+  auto orbitCamera = std::make_shared<sb::OrbitCamera>(glm::vec3(0.f), 3.f);
+
+  std::shared_ptr<sb::Camera> camera = orbitCamera;
 
   // Shaders
   sb::Shader widgetShader("widget"sv, "assets/shaders/widget/widget.vs", "assets/shaders/widget/widget.fs");
-  sb::Shader selectionShader("selection"sv, "assets/shaders/utility/selection.vs", "assets/shaders/utility/selection.fs");
+  sb::Shader selectionShader("selection"sv, "assets/shaders/utility/selection.vs",
+                             "assets/shaders/utility/selection.fs");
   sb::Shader backgroundShader("background"sv, "assets/shaders/background.vs", "assets/shaders/background.fs");
   sb::Shader outlineShader("outline"sv, "assets/shaders/pbr.vs", "assets/shaders/utility/outline.fs");
   sb::Shader uiShader("ui"sv, "assets/shaders/widget/ui.vs", "assets/shaders/widget/ui.fs");
-  
+
   // Shaders: pbr + ibl shader
   sb::Shader pbrShader("pbr"sv, "assets/shaders/pbr.vs", "assets/shaders/pbr.fs");
 
@@ -166,7 +173,7 @@ int main(int argc, char** argv) {
 
   // 0 = no selection, 1 = 0th object selected
   int sceneSelection = 0;
-  
+
   auto atlas = std::make_shared<sb::TextureAtlas>();
   // utility textures
   atlas->addBlankTexture();
@@ -178,7 +185,10 @@ int main(int argc, char** argv) {
   // fun textures for testing
   const auto nasaTextureId = atlas->addTexture("assets/textures/nasa-meatball.png");
   // add a gif for testing
-  const auto duckTextureId = atlas->addAnimatedTexture("assets/textures/walking-duck.gif");
+  const auto bongoTextureId = atlas->addAnimatedTexture("assets/textures/bongo-cat-cute-png.gif");
+  // const auto bongoTextureId = atlas->addAnimatedTexture("assets/textures/cat-bongo.gif");
+  const auto superSubTextureId = atlas->addAnimatedTexture("assets/textures/super-bongo.gif");
+  const auto parrotSubTextureId = atlas->addAnimatedTexture("assets/textures/parrot-rainbow.gif");
 
   // recompute the arrangement of the texture atlas:
   atlas->recompute();
@@ -198,8 +208,8 @@ int main(int argc, char** argv) {
   drawlist->addText({0, 16}, "Medium Text", glm::vec4(1.f), atlas, monaspaceNV24, monaspaceMetricSet24);
   drawlist->addText({0, 40}, "Large Text", glm::vec4(1.f), atlas, monaspaceNV32, monaspaceMetricSet32);
 
-  for (int i = 0; i < 10; i++) {
-    drawlist->addTexturedRect({100, 100 * i}, {100 + 100, 100 * (i + 1)}, glm::vec4(1), atlas, duckTextureId + i);
+  for (int i = 0; i < 17; i++) {
+    drawlist->addTexturedRect({100 * i, 100}, {100 * (i + 1), 100 + 100}, glm::vec4(1), atlas, bongoTextureId + i);
   }
 
   drawlist->rebuffer();
@@ -207,9 +217,10 @@ int main(int argc, char** argv) {
   // Main graphics loop
   while (!glfwWindowShouldClose(window)) {
     // Model, View, Projection
-    const auto& view = camera.view();
-    auto projection =
-        glm::perspective(glm::radians(70.f), sb::data::displayWidth / sb::data::displayHeight, 0.1f, 1000.0f);
+    camera->viewport(0.f, sb::data::displayWidth, 0.f, sb::data::displayHeight);
+
+    const auto& view = camera->view();
+    const auto& proj = camera->proj();
 
     // bind the selection framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
@@ -222,7 +233,7 @@ int main(int argc, char** argv) {
     // draw each of the objects in a unique color that can be decoded later
     selectionShader.use();
     selectionShader.setMat4("view", view);
-    selectionShader.setMat4("projection", projection);
+    selectionShader.setMat4("projection", proj);
     for (int i = 0; i < objects.size(); i++) {
       auto& object = objects.at(i);
       auto const id = i + 1;
@@ -246,7 +257,7 @@ int main(int argc, char** argv) {
 
     // Camera
     pbrShader.use();
-    pbrShader.setVec3("camPos", camera.position());
+    pbrShader.setVec3("camPos", camera->position());
 
     pbrShader.setInt("irradianceMap", 0);
     pbrShader.setInt("prefilterMap", 1);
@@ -263,7 +274,7 @@ int main(int argc, char** argv) {
     glBindTexture(GL_TEXTURE_2D, brdfLUT);
 
     pbrShader.setMat4("view", view);
-    pbrShader.setMat4("projection", projection);
+    pbrShader.setMat4("projection", proj);
 
     // Set the properties of the objects
     // pbrShader.setFloat("metallic", 0.1f);
@@ -302,9 +313,10 @@ int main(int argc, char** argv) {
       if (sceneSelection > 0) {
         glm::mat4 axesModel(1);
         axesModel = glm::translate(axesModel, objects[sceneSelection - 1]->position());
+
         widgetShader.setMat4("model", axesModel);
-        widgetShader.setMat4("view", camera.view());
-        widgetShader.setMat4("projection", projection);
+        widgetShader.setMat4("view", view);
+        widgetShader.setMat4("projection", proj);
         axesObject->draw(&widgetShader);
       }
 
@@ -317,37 +329,39 @@ int main(int argc, char** argv) {
 
       // draw the orbit position
       widgetShader.use();
-      widgetShader.setMat4("model", camera.orbit());
-      widgetShader.setMat4("view", camera.view());
-      widgetShader.setMat4("projection", projection);
+      glm::mat4 model(1.f);
+      model = glm::translate(model, camera->position());
+      widgetShader.setMat4("model", model);
+      widgetShader.setMat4("view", view);
+      widgetShader.setMat4("projection", proj);
       orbitObject->draw(&widgetShader);
 
       glDepthFunc(GL_LESS);
     }
 
-    // {
-    //   glCullFace(GL_FRONT);
-    //   /* Draw the background */
-    //   // change depth function so depth test passes when values are equal to depth buffer's content
-    //   glDepthFunc(GL_LEQUAL);
-    //   backgroundShader.use();
-    //   // remove translation from the view matrix
-    //   backgroundShader.setMat4("view", glm::mat4(glm::mat3(view)));
-    //   backgroundShader.setMat4("projection", projection);
-    //   backgroundShader.setMat4("environmentMap", 0);
-    //   glActiveTexture(GL_TEXTURE0);
-    //   glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxCubemap);
-    //   background.draw(&backgroundShader);
-    //   // set depth function back to default
-    //   glDepthFunc(GL_LESS);
+    {
+      glCullFace(GL_FRONT);
+      /* Draw the background */
+      // change depth function so depth test passes when values are equal to depth buffer's content
+      glDepthFunc(GL_LEQUAL);
+      backgroundShader.use();
+      // remove translation from the view matrix
+      backgroundShader.setMat4("view", glm::mat4(glm::mat3(view)));
+      backgroundShader.setMat4("projection", proj);
+      backgroundShader.setMat4("environmentMap", 0);
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxCubemap);
+      background.draw(&backgroundShader);
+      // set depth function back to default
+      glDepthFunc(GL_LESS);
 
-    //   glCullFace(GL_BACK);
-    // }
+      glCullFace(GL_BACK);
+    }
 
     if (std::cmp_greater(sceneSelection, 0)) {
       /* draw the selected object outline using the stencil */
       glDisable(GL_DEPTH_TEST);
-      
+
       glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
       glStencilMask(0x00);  // disable writing to stencil buffer
 
@@ -358,7 +372,7 @@ int main(int argc, char** argv) {
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       outlineShader.use();
       outlineShader.setMat4("view", view);
-      outlineShader.setMat4("projection", projection);
+      outlineShader.setMat4("projection", proj);
       object->draw(&outlineShader);
       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -368,25 +382,42 @@ int main(int argc, char** argv) {
       glEnable(GL_DEPTH_TEST);
     }
 
-    {
-      glDisable(GL_CULL_FACE);
-      uiShader.use();
-      // source texture 2D
-      uiShader.setInt("atlas", 0);
-      glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, atlas->textureName);
-      // proj, view, model
-      const glm::mat4 uiProj = glm::ortho(0.f, +sb::data::displayWidth, +sb::data::displayHeight, 0.f, -1.0f, 1.0f);
-      glm::mat4 uiModel(1.f);
-      // uiModel = glm::translate(uiModel, glm::vec3(0, +sb::data::displayHeight, 0.f));
-      // update in the shader:
-      uiShader.setMat4("projection", uiProj);
-      uiShader.setMat4("model", uiModel);
+    // auto time = glfwGetTime() * 64.f;
+    // drawlist->clear();
 
-      // draw here:
-      drawlist->draw(); 
-      glEnable(GL_CULL_FACE);
-    }
+    // drawlist->addTexturedRect({0, 0}, {500, 500}, glm::vec4(1), atlas, bongoTextureId + (int(time)) % 17) ;
+    // // drawlist->addTexturedRect({500, 0}, {1000, 500}, glm::vec4(1), atlas, bongoTextureId + (int(time)) % 17);
+    // // drawlist->addText({500, 0}, "Orion", glm::vec4(1.f), atlas, monaspaceNV32, monaspaceMetricSet32);
+    // // drawlist->addText({500,64}, "Display", glm::vec4(1.f), atlas, monaspaceNV32, monaspaceMetricSet32);
+    // // drawlist->addText({500,128}, "Engine", glm::vec4(1.f), atlas, monaspaceNV32, monaspaceMetricSet32);
+
+    // drawlist->addTexturedRect({0, 500}, {500, 1000}, glm::vec4(1), atlas, parrotSubTextureId + (int(time / 4.f) %
+    // 10)) ; drawlist->addTexturedRect({500, 500}, {1000, 1000}, glm::vec4(1), atlas, parrotSubTextureId + (int(time
+    // / 4.f) % 10)); drawlist->addTexturedRect({1000, 500}, {1500, 1000}, glm::vec4(1), atlas, parrotSubTextureId +
+    // (int(time / 4.f) % 10)) ; drawlist->addTexturedRect({1500, 500}, {2000, 1000}, glm::vec4(1), atlas,
+    // parrotSubTextureId + (int(time / 4.f) % 10));
+
+    // drawlist->rebuffer();
+
+    // {
+    //   glDisable(GL_CULL_FACE);
+    //   uiShader.use();
+    //   // source texture 2D
+    //   uiShader.setInt("atlas", 0);
+    //   glActiveTexture(GL_TEXTURE0);
+    //   glBindTexture(GL_TEXTURE_2D, atlas->textureName);
+    //   // proj, view, model
+    //   const glm::mat4 uiProj = glm::ortho(0.f, +sb::data::displayWidth, +sb::data::displayHeight, 0.f, -1.0f, 1.0f);
+    //   glm::mat4 uiModel(1.f);
+    //   // uiModel = glm::translate(uiModel, glm::vec3(0, +sb::data::displayHeight, 0.f));
+    //   // update in the shader:
+    //   uiShader.setMat4("projection", uiProj);
+    //   uiShader.setMat4("model", uiModel);
+
+    //   // draw here:
+    //   drawlist->draw();
+    //   glEnable(GL_CULL_FACE);
+    // }
 
     /* Flush results to screen and poll events */
     glfwSwapBuffers(window);
@@ -397,42 +428,57 @@ int main(int argc, char** argv) {
     while (!sb::eventQueue.empty()) {
       const auto event = sb::eventQueue.front();
       switch (event.type) {
+        case sb::EventType::kViewportEvent: {
+          const auto data = std::any_cast<sb::ViewportEvent>(event.contents());
+          glViewport(0, 0, data.width, data.height);
+          break;
+        }
         case sb::EventType::kKeyboardEvent: {
-          const auto data = std::get<sb::KeyboardEvent>(event.contents());
+          const auto data = std::any_cast<sb::KeyboardEvent>(event.contents());
           switch (data.key) {
             case GLFW_KEY_O: {
-              // open a file and import
-              // ...
+              /* O: orbit camera */
+              if (std::cmp_equal(data.action, GLFW_PRESS)) {
+                std::cout << "Orbit Camera Enabled!" << std::endl;
+                camera = orbitCamera;
+              }
+              break;
+            }
+            case GLFW_KEY_S: {
+              /* S: use scroll camera */
+              if (std::cmp_equal(data.action, GLFW_PRESS)) {
+                std::cout << "Scroll Camera Enabled!" << std::endl;
+                camera = scrollCamera;
+              }
               break;
             }
             case GLFW_KEY_B: {
-              if (data.action == GLFW_PRESS) {
-                static bool flag{1};
-                flag ^= 1;
-                if (flag) {
-                  glDisable(GL_BLEND);
-                } else {
+              // Ctrl + B: toggle blending
+              if (std::cmp_equal(data.action, GLFW_PRESS) && (data.mods & GLFW_MOD_CONTROL)) {
+                static bool enableBlending(false);
+                enableBlending = !enableBlending;
+                if (enableBlending) {
                   glEnable(GL_BLEND);
+                } else {
+                  glDisable(GL_BLEND);
                 }
               }
               break;
             }
             case GLFW_KEY_ESCAPE: {
-              // close the program
-              glfwSetWindowShouldClose(window, true);
-              break;
-            }
-            default: {
-              // forward to the camera
-              camera.handleKeyboardEvent(data);
+              // Esc: close the program
+              if (std::cmp_equal(data.action, GLFW_PRESS)) {
+                glfwSetWindowShouldClose(window, true);
+              }
               break;
             }
           }
+          camera->processEvent(data);
           break;
         }
         case sb::EventType::kMouseButtonEvent: {
-          const auto data = std::get<sb::MouseButtonEvent>(event.contents());
-          if ((data.button == GLFW_MOUSE_BUTTON_LEFT) && (data.action == GLFW_PRESS)) {
+          const auto& data = std::any_cast<sb::MouseButtonEvent>(event.contents());
+          if (std::cmp_equal(data.button, GLFW_MOUSE_BUTTON_LEFT) && std::cmp_equal(data.action, GLFW_PRESS)) {
             // sample the pixel at the last mouse position
             int xpos = lastMousePos.x;
             int ypos = lastMousePos.y;
@@ -454,25 +500,34 @@ int main(int argc, char** argv) {
             // std::cout << sceneSelection << std::endl;
 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-          } else {
-            // forward to the camera
-            camera.handleMouseButtonEvent(data);
           }
+          camera->processEvent(data);
           break;
         }
         case sb::EventType::kMousePositionEvent: {
-          const auto data = std::get<sb::MousePositionEvent>(event.contents());
+          const auto data = std::any_cast<sb::MousePositionEvent>(event.contents());
           lastMousePos.x = data.xpos;
           lastMousePos.y = data.ypos;
           // forward to the camera
-          camera.handlePositionEvent(data);
+          camera->processEvent(data);
           break;
         }
         case sb::EventType::kScrollEvent: {
-          const auto data = std::get<sb::ScrollEvent>(event.contents());
+          const auto data = std::any_cast<sb::ScrollEvent>(event.contents());
           // forward to the camera
-          camera.handleScrollEvent(data);
+          camera->processEvent(data);
+          break;
+        }
+        case sb::EventType::kCursorEnterEvent: {
+          const auto& data = std::any_cast<int>(event.contents());
+          std::cout << "cursor left? " << "false\0true"[data * 6] << std::endl;
+          break;
+        }
+        case sb::EventType::kDropEvent: {
+          const auto& data = std::any_cast<sb::DropEvent>(event.contents());
+          for (const auto& path : data.paths) {
+            std::cout << path << std::endl;
+          }
           break;
         }
       }

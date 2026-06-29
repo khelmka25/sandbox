@@ -9,4 +9,5 @@ extern void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
 extern void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 extern void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 extern void glfwScrollCallback(GLFWwindow* window, double xoff, double yoff);
+extern void glfwDropCallback(GLFWwindow* window, int path_count, const char* paths[]);
 };

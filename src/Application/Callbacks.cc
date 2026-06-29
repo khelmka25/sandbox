@@ -6,10 +6,11 @@
 #include "Data.h"
 
 namespace sb::cb {
-void glfwFramebufferSizeCallback(GLFWwindow*, int newWidth, int newHeight) {
-  glViewport(0, 0, newWidth, newHeight);
-  data::displayWidth = newWidth;
-  data::displayHeight = newHeight;
+void glfwFramebufferSizeCallback(GLFWwindow*, int width, int height) {
+  ViewportEvent event;
+  event.width = width;
+  event.height = height;
+  eventQueue.emplace(EventType::kViewportEvent, event);
 }
 
 void glfwErrorCallback(int error_code, const char* description) {
@@ -46,4 +47,18 @@ void glfwScrollCallback(GLFWwindow* window, double xoff, double yoff) {
   event.dy = static_cast<float>(yoff);
   eventQueue.emplace(EventType::kScrollEvent, event);
 }
+
+void glfwEnterCallback(GLFWwindow* window, int entered) {
+  // eventQueue.emplace(EventType::kCursorEnterEvent, std::in_place_type<int>, entered);
+  eventQueue.emplace(EventType::kCursorEnterEvent, std::in_place_type<int>, entered);
+}
+
+void glfwDropCallback(GLFWwindow* window, int path_count, const char* paths[]) {
+  DropEvent event;
+  for (int i = 0; i < path_count; i++) {
+    event.paths.emplace_back(paths[i]);
+  }
+  eventQueue.emplace(EventType::kDropEvent, std::move(event));
+}
+
 }  // namespace sb::cb

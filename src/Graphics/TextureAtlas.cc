@@ -1,10 +1,10 @@
 #include "Graphics/TextureAtlas.h"
 
 #include <freetype/freetype.h>
+#include <gifdec.h>
 #include <glad/glad.h>
 #include <rectpack2D/finders_interface.h>
 #include <stb_image.h>
-#include <gifdec.h>
 
 #include <cstdlib>
 #include <filesystem>
@@ -83,12 +83,12 @@ unsigned TextureAtlas::addTexture(std::filesystem::path filepath) noexcept(false
   return index;
 }
 
-std::pair<glm::vec2, glm::vec2> TextureAtlas::getTextureUv(unsigned textureName) noexcept(true)  {
+std::pair<glm::vec2, glm::vec2> TextureAtlas::getTextureUv(unsigned textureName) noexcept(true) {
   // need bounds checking:
   if (textureName >= textureDescriptors.size()) {
     return getTextureUv(missingTextureId);
   }
-  
+
   const unsigned index = textureName;
 
   // compute the uv coordinates of the subtexture
@@ -124,16 +124,38 @@ unsigned TextureAtlas::addAnimatedTexture(std::filesystem::path filepath) noexce
     TextureDesciptor descriptor;
     descriptor.size.x = width;
     descriptor.size.y = height;
-    descriptor.nrChannels = 3;
+    descriptor.nrChannels = 4;
     textureDescriptors.push_back(std::move(descriptor));
     // load and commit to memory:
-    auto storage = std::make_unique<unsigned char[]>(width * height * 3u);
-    gd_render_frame(gif, storage.get());
+    auto storageRGB = std::make_unique<unsigned char[]>(width * height * 3u);
+    gd_render_frame(gif, storageRGB.get());
+    auto storageRGBA = std::make_unique<unsigned char[]>(width * height * 4u);
+
+    for (unsigned row = 0; row < height; row++) {
+      for (unsigned col = 0; col < width; col++) {
+        unsigned pos = row * width + col;
+        unsigned char* color = &(storageRGB[pos * 3u]);
+        if (gd_is_bgcolor(gif, color)) {
+          storageRGBA[pos * 4u + 0u] = 0x00;
+          storageRGBA[pos * 4u + 1u] = 0x00;
+          storageRGBA[pos * 4u + 2u] = 0x00;
+          storageRGBA[pos * 4u + 3u] = 0x00;
+        } else {
+          storageRGBA[pos * 4u + 0u] = color[0];
+          storageRGBA[pos * 4u + 1u] = color[1];
+          storageRGBA[pos * 4u + 2u] = color[2];
+          storageRGBA[pos * 4u + 3u] = 0xff;
+        }
+      }
+    }
+
     // commit the storage to memory:
-    textureStorages.push_back(std::move(storage));
-    
+    textureStorages.push_back(std::move(storageRGBA));
+
     numFrames++;
   }
+
+  std::cout << numFrames << std::endl;
 
   gd_close_gif(gif);
 
@@ -141,7 +163,8 @@ unsigned TextureAtlas::addAnimatedTexture(std::filesystem::path filepath) noexce
   return (numFrames > 0) ? gifSubtextureStartId : missingTextureId;
 }
 
-std::pair<glm::vec2, glm::vec2> TextureAtlas::getAnimatedTextureFrameUv(unsigned firstSubtextureId, unsigned frameIndex) noexcept(true) {
+std::pair<glm::vec2, glm::vec2> TextureAtlas::getAnimatedTextureFrameUv(unsigned firstSubtextureId,
+                                                                        unsigned frameIndex) noexcept(true) {
   return getTextureUv(firstSubtextureId + frameIndex);
 }
 
@@ -201,8 +224,8 @@ unsigned TextureAtlas::addFont(std::filesystem::path filepath, int fontSize) noe
   return index;
 }
 
-std::pair<glm::vec2, glm::vec2> TextureAtlas::getCharacterUv(unsigned fontBaseName, int c) noexcept(true)  {
-  // we don't save control characters in the texture, so just resuse the space (blank texture) for the 
+std::pair<glm::vec2, glm::vec2> TextureAtlas::getCharacterUv(unsigned fontBaseName, int c) noexcept(true) {
+  // we don't save control characters in the texture, so just resuse the space (blank texture) for the
   if (std::iscntrl(c)) {
     // just return the first character ("space")
     return getTextureUv(fontBaseName);
@@ -242,7 +265,7 @@ void TextureAtlas::recompute() {
   // convert descriptor into rectangles
   for (std::size_t i{}; i < textureDescriptors.size(); i++) {
     const auto& descriptor = textureDescriptors.at(i);
-    // create a rect to represent this texture 
+    // create a rect to represent this texture
     rect_type rect;
     rect.w = descriptor.size.x;
     rect.h = descriptor.size.y;
@@ -261,7 +284,7 @@ void TextureAtlas::recompute() {
   const auto input = rectpack2D::make_finder_input(max_side, discard_step, report_successful, report_unsuccessful,
                                                    rectpack2D::flipping_option::DISABLED);
 
-  // ensure that the order does not change                                                   
+  // ensure that the order does not change
   const auto result_size = rectpack2D::find_best_packing_dont_sort<spaces_type>(rectangles, input);
 
   // report_result(result_size);
@@ -293,10 +316,10 @@ void TextureAtlas::rebuffer() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   // can either make nearest or linear?
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
   // go through all the subtextures and upload to the main texture
   for (std::size_t i{}; i < textureDescriptors.size(); i++) {
